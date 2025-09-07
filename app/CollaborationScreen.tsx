@@ -1,0 +1,803 @@
+import React, { useState, useRef, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
+  Animated,
+  Dimensions,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Modal,
+  PanResponder,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+
+const { width, height } = Dimensions.get('window');
+const SWIPE_THRESHOLD = width * 0.25;
+
+interface CollaborationEvent {
+  id: string;
+  title: string;
+  description: string;
+  author: string;
+  authorAvatar: string;
+  skills: string[];
+  duration: string;
+  location: string;
+  teamSize: string;
+  experience: string;
+  timeCommitment: string;
+  tags: string[];
+  image: string;
+  category: string;
+}
+
+export default function CollaborationScreen() {
+  const router = useRouter();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [likedEvents, setLikedEvents] = useState<CollaborationEvent[]>([]);
+  const [passedEvents, setPassedEvents] = useState<CollaborationEvent[]>([]);
+  const [showLikedModal, setShowLikedModal] = useState(false);
+  const [showPassedModal, setShowPassedModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CollaborationEvent | null>(null);
+
+  const position = useRef(new Animated.ValueXY()).current;
+  const rotate = useRef(new Animated.Value(0)).current;
+  const likeOpacity = useRef(new Animated.Value(0)).current;
+  const passOpacity = useRef(new Animated.Value(0)).current;
+
+  const events: CollaborationEvent[] = [
+    {
+      id: '1',
+      title: 'Sustainable Campus Initiative',
+      description: 'Looking for environmental science students to develop eco-friendly solutions for our campus. We\'re working on waste reduction, energy efficiency, and green transportation options.',
+      author: 'Sarah Chen',
+      authorAvatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150',
+      skills: ['Environmental Science', 'Data Analysis', 'Project Management', 'Research'],
+      duration: '3-6 months',
+      location: 'Hybrid',
+      teamSize: '4-6 people',
+      experience: 'Beginner friendly',
+      timeCommitment: '10-15 hours/week',
+      tags: ['Sustainability', 'Research', 'Impact'],
+      image: 'https://images.unsplash.com/photo-1569163139394-de4e4f43e4e3?w=400',
+      category: 'Research'
+    },
+    {
+      id: '2',
+      title: 'AI-Powered Study Assistant',
+      description: 'Building an intelligent study companion app using machine learning to help students optimize their learning patterns and improve academic performance.',
+      author: 'Ahmed Hassan',
+      authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+      skills: ['Machine Learning', 'React Native', 'Python', 'UI/UX Design'],
+      duration: '4-8 months',
+      location: 'Remote',
+      teamSize: '3-5 people',
+      experience: 'Intermediate',
+      timeCommitment: '15-20 hours/week',
+      tags: ['AI', 'Education', 'Mobile App'],
+      image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400',
+      category: 'Technology'
+    }
+  ];
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderMove: (_, gesture) => {
+      position.setValue({ x: gesture.dx, y: gesture.dy });
+      
+      const rotateValue = gesture.dx / width * 0.4;
+      rotate.setValue(rotateValue);
+      
+      if (gesture.dx > 50) {
+        likeOpacity.setValue(Math.min(gesture.dx / 120, 1));
+        passOpacity.setValue(0);
+      } else if (gesture.dx < -50) {
+        passOpacity.setValue(Math.min(Math.abs(gesture.dx) / 120, 1));
+        likeOpacity.setValue(0);
+      } else {
+        likeOpacity.setValue(0);
+        passOpacity.setValue(0);
+      }
+    },
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dx > SWIPE_THRESHOLD) {
+        handleLike();
+      } else if (gesture.dx < -SWIPE_THRESHOLD) {
+        handlePass();
+      } else {
+        resetPosition();
+      }
+    },
+  });
+
+  const resetPosition = () => {
+    Animated.parallel([
+      Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }),
+      Animated.spring(rotate, { toValue: 0, useNativeDriver: false }),
+      Animated.timing(likeOpacity, { toValue: 0, duration: 200, useNativeDriver: false }),
+      Animated.timing(passOpacity, { toValue: 0, duration: 200, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const handleLike = () => {
+    if (currentIndex >= events.length) return;
+    const currentEvent = events[currentIndex];
+    setLikedEvents(prev => [...prev, currentEvent]);
+    animateCardOut(true);
+  };
+
+  const handlePass = () => {
+    if (currentIndex >= events.length) return;
+    const currentEvent = events[currentIndex];
+    setPassedEvents(prev => [...prev, currentEvent]);
+    animateCardOut(false);
+  };
+
+  const animateCardOut = (isLike: boolean) => {
+    const toValue = isLike ? width + 100 : -width - 100;
+    Animated.parallel([
+      Animated.timing(position, {
+        toValue: { x: toValue, y: 0 },
+        duration: 300,
+        useNativeDriver: false,
+      }),
+      Animated.timing(rotate, {
+        toValue: isLike ? 0.3 : -0.3,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+    ]).start(() => {
+      setCurrentIndex(prev => prev + 1);
+      position.setValue({ x: 0, y: 0 });
+      rotate.setValue(0);
+      likeOpacity.setValue(0);
+      passOpacity.setValue(0);
+    });
+  };
+
+  const handleCardPress = () => {
+    if (currentIndex >= events.length) return;
+    setSelectedEvent(events[currentIndex]);
+    setShowDetailModal(true);
+  };
+
+  const renderCard = (event: CollaborationEvent, index: number) => {
+    if (index < currentIndex) return null;
+    
+    const isTopCard = index === currentIndex;
+    const cardStyle = isTopCard ? {
+      transform: [
+        ...position.getTranslateTransform(),
+        {
+          rotate: rotate.interpolate({
+            inputRange: [-1, 0, 1],
+            outputRange: ['-30deg', '0deg', '30deg'],
+          }),
+        },
+      ],
+    } : {};
+
+    return (
+      <Animated.View
+        key={event.id}
+        style={[
+          styles.card,
+          cardStyle,
+          { zIndex: events.length - index }
+        ]}
+        {...(isTopCard ? panResponder.panHandlers : {})}
+      >
+        <TouchableOpacity 
+          style={styles.cardContent}
+          onPress={handleCardPress}
+          activeOpacity={0.95}
+        >
+          <Image source={{ uri: event.image }} style={styles.cardImage} />
+          
+          {/* Like/Pass Overlays */}
+          {isTopCard && (
+            <>
+              <Animated.View style={[styles.likeOverlay, { opacity: likeOpacity }]}>
+                <Text style={styles.overlayText}>LIKE</Text>
+              </Animated.View>
+              <Animated.View style={[styles.passOverlay, { opacity: passOpacity }]}>
+                <Text style={styles.overlayText}>PASS</Text>
+              </Animated.View>
+            </>
+          )}
+
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            style={styles.cardGradient}
+          >
+            <View style={styles.cardInfo}>
+              <Text style={styles.cardTitle}>{event.title}</Text>
+              <Text style={styles.cardAuthor}>by {event.author}</Text>
+              <Text style={styles.cardDescription} numberOfLines={2}>
+                {event.description}
+              </Text>
+              
+              <View style={styles.cardDetails}>
+                <View style={styles.detailItem}>
+                  <Ionicons name="time-outline" size={14} color="#FFF" />
+                  <Text style={styles.detailText}>{event.duration}</Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Ionicons name="location-outline" size={14} color="#FFF" />
+                  <Text style={styles.detailText}>{event.location}</Text>
+                </View>
+              </View>
+
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.skillsContainer}
+              >
+                {event.skills.slice(0, 3).map((skill, idx) => (
+                  <View key={idx} style={styles.skillChip}>
+                    <Text style={styles.skillText}>{skill}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#8B1A1A" />
+      
+      {/* Header */}
+      <LinearGradient colors={['#8B1A1A', '#A52A2A']} style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Find Your Perfect Collaborator</Text>
+        <View style={styles.headerRight} />
+      </LinearGradient>
+
+      {/* Stats Bar */}
+      <View style={styles.statsBar}>
+        <TouchableOpacity 
+          style={styles.statButton}
+          onPress={() => setShowLikedModal(true)}
+        >
+          <Ionicons name="heart" size={20} color="#8B1A1A" />
+          <Text style={styles.statText}>Liked ({likedEvents.length})</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.statButton}
+          onPress={() => setShowPassedModal(true)}
+        >
+          <Ionicons name="close" size={20} color="#666" />
+          <Text style={styles.statText}>Passed ({passedEvents.length})</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Cards Container */}
+      <View style={styles.cardsContainer}>
+        {currentIndex >= events.length ? (
+          <View style={styles.noMoreCards}>
+            <Ionicons name="checkmark-circle" size={80} color="#8B1A1A" />
+            <Text style={styles.noMoreText}>No more collaborations!</Text>
+            <Text style={styles.noMoreSubtext}>Check back later for new opportunities</Text>
+          </View>
+        ) : (
+          events.map((event, index) => renderCard(event, index))
+        )}
+      </View>
+
+      {/* Action Buttons */}
+      {currentIndex < events.length && (
+        <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.passButton]}
+            onPress={handlePass}
+          >
+            <Ionicons name="close" size={30} color="#666" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.likeButton]}
+            onPress={handleLike}
+          >
+            <Ionicons name="heart" size={30} color="#8B1A1A" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Detail Modal */}
+      <Modal
+        visible={showDetailModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        {selectedEvent && (
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setShowDetailModal(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Event Details</Text>
+              <View style={{ width: 24 }} />
+            </View>
+            
+            <ScrollView style={styles.modalContent}>
+              <Image source={{ uri: selectedEvent.image }} style={styles.modalImage} />
+              
+              <View style={styles.modalInfo}>
+                <Text style={styles.modalEventTitle}>{selectedEvent.title}</Text>
+                <Text style={styles.modalAuthor}>by {selectedEvent.author}</Text>
+                
+                <Text style={styles.modalDescription}>{selectedEvent.description}</Text>
+                
+                <View style={styles.modalDetails}>
+                  <View style={styles.modalDetailRow}>
+                    <Text style={styles.modalDetailLabel}>Duration:</Text>
+                    <Text style={styles.modalDetailValue}>{selectedEvent.duration}</Text>
+                  </View>
+                  <View style={styles.modalDetailRow}>
+                    <Text style={styles.modalDetailLabel}>Location:</Text>
+                    <Text style={styles.modalDetailValue}>{selectedEvent.location}</Text>
+                  </View>
+                  <View style={styles.modalDetailRow}>
+                    <Text style={styles.modalDetailLabel}>Team Size:</Text>
+                    <Text style={styles.modalDetailValue}>{selectedEvent.teamSize}</Text>
+                  </View>
+                  <View style={styles.modalDetailRow}>
+                    <Text style={styles.modalDetailLabel}>Experience:</Text>
+                    <Text style={styles.modalDetailValue}>{selectedEvent.experience}</Text>
+                  </View>
+                  <View style={styles.modalDetailRow}>
+                    <Text style={styles.modalDetailLabel}>Time Commitment:</Text>
+                    <Text style={styles.modalDetailValue}>{selectedEvent.timeCommitment}</Text>
+                  </View>
+                </View>
+                
+                <Text style={styles.skillsTitle}>Skills Needed:</Text>
+                <View style={styles.modalSkills}>
+                  {selectedEvent.skills.map((skill, idx) => (
+                    <View key={idx} style={styles.modalSkillChip}>
+                      <Text style={styles.modalSkillText}>{skill}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        )}
+      </Modal>
+
+      {/* Liked Events Modal */}
+      <Modal
+        visible={showLikedModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowLikedModal(false)}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Liked Events ({likedEvents.length})</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          
+          <ScrollView style={styles.listContainer}>
+            {likedEvents.map((event) => (
+              <TouchableOpacity 
+                key={event.id} 
+                style={styles.listItem}
+                onPress={() => {
+                  setSelectedEvent(event);
+                  setShowLikedModal(false);
+                  setShowDetailModal(true);
+                }}
+              >
+                <Image source={{ uri: event.image }} style={styles.listImage} />
+                <View style={styles.listInfo}>
+                  <Text style={styles.listTitle}>{event.title}</Text>
+                  <Text style={styles.listAuthor}>by {event.author}</Text>
+                  <Text style={styles.listDescription} numberOfLines={2}>
+                    {event.description}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Passed Events Modal */}
+      <Modal
+        visible={showPassedModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowPassedModal(false)}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Passed Events ({passedEvents.length})</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          
+          <ScrollView style={styles.listContainer}>
+            {passedEvents.map((event) => (
+              <TouchableOpacity 
+                key={event.id} 
+                style={styles.listItem}
+                onPress={() => {
+                  setSelectedEvent(event);
+                  setShowPassedModal(false);
+                  setShowDetailModal(true);
+                }}
+              >
+                <Image source={{ uri: event.image }} style={styles.listImage} />
+                <View style={styles.listInfo}>
+                  <Text style={styles.listTitle}>{event.title}</Text>
+                  <Text style={styles.listAuthor}>by {event.author}</Text>
+                  <Text style={styles.listDescription} numberOfLines={2}>
+                    {event.description}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    paddingTop: 40,
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerRight: {
+    width: 34,
+  },
+  statsBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: 'white',
+    justifyContent: 'space-around',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  statButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 20,
+  },
+  statText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  cardsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  card: {
+    position: 'absolute',
+    width: width - 40,
+    height: height * 0.7,
+    borderRadius: 20,
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  cardContent: {
+    flex: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  cardImage: {
+    width: '100%',
+    height: '60%',
+    resizeMode: 'cover',
+  },
+  cardGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    justifyContent: 'flex-end',
+  },
+  cardInfo: {
+    padding: 20,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
+  },
+  cardAuthor: {
+    fontSize: 16,
+    color: '#E5E7EB',
+    marginBottom: 8,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: '#F3F4F6',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  cardDetails: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  detailText: {
+    fontSize: 12,
+    color: '#E5E7EB',
+  },
+  skillsContainer: {
+    marginTop: 8,
+  },
+  skillChip: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  skillText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '500',
+  },
+  likeOverlay: {
+    position: 'absolute',
+    top: 50,
+    left: 30,
+    backgroundColor: '#42C767',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    transform: [{ rotate: '-30deg' }],
+    zIndex: 10,
+  },
+  passOverlay: {
+    position: 'absolute',
+    top: 50,
+    right: 30,
+    backgroundColor: '#FF4458',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    transform: [{ rotate: '30deg' }],
+    zIndex: 10,
+  },
+  overlayText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 40,
+    paddingVertical: 20,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+  },
+  actionButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  passButton: {
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#666',
+  },
+  likeButton: {
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#8B1A1A',
+  },
+  noMoreCards: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noMoreText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginTop: 20,
+  },
+  noMoreSubtext: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalImage: {
+    width: '100%',
+    height: 250,
+    resizeMode: 'cover',
+  },
+  modalInfo: {
+    padding: 20,
+  },
+  modalEventTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  modalAuthor: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 16,
+  },
+  modalDescription: {
+    fontSize: 16,
+    color: '#374151',
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  modalDetails: {
+    marginBottom: 20,
+  },
+  modalDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  modalDetailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  modalDetailValue: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  skillsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  modalSkills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  modalSkillChip: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  modalSkillText: {
+    fontSize: 12,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  listContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  listImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  listInfo: {
+    flex: 1,
+  },
+  listTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 2,
+  },
+  listAuthor: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  listDescription: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    lineHeight: 16,
+  },
+});
