@@ -301,25 +301,6 @@ export default function SearchScreen() {
         )}
       </Animated.View>
 
-      {/* Collaboration Button */}
-      <Animated.View style={[styles.collaborationButtonContainer, { opacity: fadeAnim }]}>
-        <TouchableOpacity 
-          style={styles.collaborationButton}
-          onPress={() => router.push('/CollaborationScreen')}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={['#8B1A1A', '#A52A2A']}
-            style={styles.collaborationGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <Ionicons name="people" size={20} color="white" />
-            <Text style={styles.collaborationButtonText}>Find Collaborators</Text>
-            <Ionicons name="arrow-forward" size={16} color="white" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
@@ -545,22 +526,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 12,
   },
-  sectionContainer: {
-    marginTop: 14,
-  },
-  sectionLabel: {
-    fontSize: 18,
-    color: '#111111',
-    marginBottom: 16,
-    fontWeight: '600',
-  },
   filterPanel: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
@@ -1098,32 +1070,6 @@ const styles = StyleSheet.create({
   followButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
-  },
-  collaborationButtonContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  collaborationButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  collaborationGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  collaborationButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
     fontWeight: '600',
     flex: 1,
     textAlign: 'center',

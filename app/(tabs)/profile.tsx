@@ -358,7 +358,7 @@ export default function ProfileScreen() {
           { title: "Dean's List", subtitle: "Fall 2023 Semester", icon: "trophy" },
           { title: "Hackathon Winner", subtitle: "Dubai Tech Challenge 2024", icon: "medal" },
           { title: "Research Publication", subtitle: "AI in Education Conference", icon: "book" },
-          { title: "Club President", subtitle: "Tech Society 2024", icon: "crown" },
+          { title: "Club President", subtitle: "Tech Society 2024", icon: "ribbon" },
         ].map((achievement, index) => (
           <TouchableOpacity key={index} style={styles.achievementCard}>
             <View style={styles.achievementIcon}>
