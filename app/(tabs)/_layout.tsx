@@ -89,12 +89,11 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#8B1A1A',
+        tabBarActiveTintColor: '#991B1B',
         tabBarInactiveTintColor: '#111111',
         tabBarStyle: {
           backgroundColor: '#FFF7F0',
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
+          borderTopWidth: 0,
           marginHorizontal: 0,
           marginBottom: 0,
           height: 64,
@@ -196,7 +195,7 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   activeTabContainer: {
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     borderRadius: 20,
     width: 44,
     height: 44,

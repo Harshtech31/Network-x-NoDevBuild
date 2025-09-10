@@ -1,21 +1,25 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   ScrollView,
+  TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
-  StatusBar,
+  Dimensions,
+  TextInput,
   Animated,
   Image,
+  Modal,
+  Alert,
   BackHandler,
-  Dimensions,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import PostDetailModal from '../../components/PostDetailModal';
 import RecentlySearchedCard from '../../components/RecentlySearchedCard';
 
 const { width } = Dimensions.get('window');
@@ -51,6 +55,49 @@ export default function SearchScreen() {
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [showAllClubs, setShowAllClubs] = useState(false);
   const [postInteractions, setPostInteractions] = useState<{[key: string]: {liked: boolean, likes: number, comments: number}}>({});
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Filtered data states
+  const [filteredPeople, setFilteredPeople] = useState<any[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<any[]>([]);
+  const [filteredClubs, setFilteredClubs] = useState<any[]>([]);
+  
+  // Mock data
+  const MOCK_PEOPLE = [
+    { id: '1', name: 'Sarah Chen', department: 'Computer Science', field: 'AI Research', year: '3rd Year', avatar: 'https://i.pravatar.cc/150?u=sarah' },
+    { id: '2', name: 'Ahmed Hassan', department: 'Electrical', field: 'Robotics', year: '4th Year', avatar: 'https://i.pravatar.cc/150?u=ahmed' },
+    { id: '3', name: 'Maria Rodriguez', department: 'Biotechnology', field: 'Genetics', year: '2nd Year', avatar: 'https://i.pravatar.cc/150?u=maria' },
+    { id: '4', name: 'David Kim', department: 'Mechanical', field: 'Design', year: '1st Year', avatar: 'https://i.pravatar.cc/150?u=david' },
+  ];
+  
+  const MOCK_POSTS = [
+    { id: '1', author: 'Sarah Chen', content: 'Just published my research on neural networks!', likes: 24, comments: 8, timestamp: '2h ago' },
+    { id: '2', author: 'Ahmed Hassan', content: 'Looking for collaborators on my robotics project', likes: 15, comments: 12, timestamp: '4h ago' },
+    { id: '3', author: 'Maria Rodriguez', content: 'Excited about the biotech symposium next week', likes: 31, comments: 6, timestamp: '1d ago' },
+  ];
+  
+  const MOCK_PROJECTS = [
+    { id: '1', title: 'Smart Campus App', description: 'Mobile app for campus navigation', status: 'Active', members: 4 },
+    { id: '2', title: 'AI Tutoring System', description: 'Personalized learning platform', status: 'Planning', members: 6 },
+    { id: '3', title: 'Sustainable Energy Monitor', description: 'IoT solution for energy tracking', status: 'Completed', members: 3 },
+  ];
+  
+  const MOCK_CLUBS = [
+    { id: '1', name: 'AI Society', category: 'Technology', members: 156, description: 'Exploring artificial intelligence' },
+    { id: '2', name: 'Robotics Club', category: 'Engineering', members: 89, description: 'Building the future with robots' },
+    { id: '3', name: 'Biotech Innovation', category: 'Science', members: 67, description: 'Advancing biotechnology research' },
+  ];
+  
+  // Initialize filtered data on component mount
+  useEffect(() => {
+    setFilteredPeople(MOCK_PEOPLE);
+    setFilteredPosts(MOCK_POSTS);
+    setFilteredProjects(MOCK_PROJECTS);
+    setFilteredClubs(MOCK_CLUBS);
+  }, []);
 
   // Handle back button to return to previous state instead of home
   useFocusEffect(
@@ -73,9 +120,102 @@ export default function SearchScreen() {
     }, [showAllPeople, showAllPosts, showAllProjects, showAllClubs])
   );
 
-  const handleSearch = () => {
-    console.log('Searching for:', query);
-  };
+  const handleSearch = useCallback(async () => {
+    if (query.trim()) {
+      setIsSearching(true);
+      
+      try {
+        // Simulate search API delay
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // Enhanced search with letter-based filtering and word-start matching
+        const searchTerm = query.toLowerCase().trim();
+        
+        // Helper function to check if any word starts with the search term
+        const matchesWordStart = (text: string, searchTerm: string): boolean => {
+          const words = text.toLowerCase().split(/\s+/);
+          return words.some(word => word.startsWith(searchTerm));
+        };
+        
+        // Helper function to score matches (higher score = better match)
+        const getMatchScore = (text: string, searchTerm: string): number => {
+          const lowerText = text.toLowerCase();
+          if (lowerText.startsWith(searchTerm)) return 100; // Exact start match
+          if (matchesWordStart(text, searchTerm)) return 80; // Word start match
+          if (lowerText.includes(searchTerm)) return 60; // Contains match
+          return 0; // No match
+        };
+        
+        // Filter and sort results by relevance
+        const searchResults = {
+          people: MOCK_PEOPLE
+            .map((person: any) => ({
+              ...person,
+              score: Math.max(
+                getMatchScore(person.name, searchTerm),
+                getMatchScore(person.department, searchTerm),
+                getMatchScore(person.field, searchTerm),
+                getMatchScore(person.year, searchTerm)
+              )
+            }))
+            .filter((person: any) => person.score > 0)
+            .sort((a: any, b: any) => b.score - a.score),
+            
+          posts: MOCK_POSTS
+            .map((post: any) => ({
+              ...post,
+              score: Math.max(
+                getMatchScore(post.content, searchTerm),
+                getMatchScore(post.author, searchTerm)
+              )
+            }))
+            .filter((post: any) => post.score > 0)
+            .sort((a: any, b: any) => b.score - a.score),
+            
+          projects: MOCK_PROJECTS
+            .map((project: any) => ({
+              ...project,
+              score: Math.max(
+                getMatchScore(project.title, searchTerm),
+                getMatchScore(project.description, searchTerm),
+                getMatchScore(project.status, searchTerm)
+              )
+            }))
+            .filter((project: any) => project.score > 0)
+            .sort((a: any, b: any) => b.score - a.score),
+            
+          clubs: MOCK_CLUBS
+            .map((club: any) => ({
+              ...club,
+              score: Math.max(
+                getMatchScore(club.name, searchTerm),
+                getMatchScore(club.category, searchTerm),
+                getMatchScore(club.description, searchTerm)
+              )
+            }))
+            .filter((club: any) => club.score > 0)
+            .sort((a: any, b: any) => b.score - a.score)
+        };
+      
+        // Update filtered data
+        setFilteredPeople(searchResults.people);
+        setFilteredPosts(searchResults.posts);
+        setFilteredProjects(searchResults.projects);
+        setFilteredClubs(searchResults.clubs);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to search. Please try again.');
+      } finally {
+        setIsSearching(false);
+      }
+    } else {
+      // Reset to original data if query is empty
+      setFilteredPeople(MOCK_PEOPLE);
+      setFilteredPosts(MOCK_POSTS);
+      setFilteredProjects(MOCK_PROJECTS);
+      setFilteredClubs(MOCK_CLUBS);
+      setIsSearching(false);
+    }
+  }, [query]);
 
   const handleFilterPress = () => {
     setShowFilter(!showFilter);
@@ -130,12 +270,21 @@ export default function SearchScreen() {
   };
 
   const handlePersonPress = (person: any) => {
-    router.push(`/PersonDetailScreen?id=${person.id}&name=${encodeURIComponent(person.name)}&field=${encodeURIComponent(person.field)}`);
+    router.push(`/UserProfileScreen?userId=${person.id}&name=${encodeURIComponent(person.name)}&field=${encodeURIComponent(person.field)}`);
   };
 
   const handlePostPress = (post: any) => {
-    // TODO: Implement post detail view or expand inline
-    console.log('Navigate to post:', post.content);
+    // Navigate to post detail modal (similar to profile posts)
+    setSelectedPost(post);
+    setShowPostModal(true);
+  };
+
+  const handleJoinProject = (projectId: string, projectTitle: string) => {
+    Alert.alert(
+      'Join Project Request',
+      `Your request to join "${projectTitle}" has been sent to the project lead. You will receive a notification once approved.`,
+      [{ text: 'OK' }]
+    );
   };
 
   const handleProjectPress = (project: any) => {
@@ -191,11 +340,29 @@ export default function SearchScreen() {
             placeholderTextColor="#9CA3AF"
             style={styles.searchInput}
             value={query}
-            onChangeText={setQuery}
+            onChangeText={(text) => {
+              setQuery(text);
+              // Trigger search on text change for real-time filtering
+              if (text.trim()) {
+                handleSearch();
+              } else {
+                // Reset to original data if query is empty
+                setFilteredPeople(MOCK_PEOPLE);
+                setFilteredPosts(MOCK_POSTS);
+                setFilteredProjects(MOCK_PROJECTS);
+                setFilteredClubs(MOCK_CLUBS);
+                setIsSearching(false);
+              }
+            }}
+            onSubmitEditing={handleSearch}
           />
-          <TouchableOpacity onPress={handleFilterPress} style={styles.filterButton}>
-            <Ionicons name="funnel-outline" size={20} color="#8B1A1A" />
-          </TouchableOpacity>
+          {isSearching ? (
+            <ActivityIndicator size="small" color="#991B1B" style={styles.searchLoader} />
+          ) : (
+            <TouchableOpacity onPress={handleFilterPress} style={styles.filterButton}>
+              <Ionicons name="funnel-outline" size={20} color="#991B1B" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Modern Filter Panel */}
@@ -314,19 +481,15 @@ export default function SearchScreen() {
               </TouchableOpacity>
             </View>
             
-            {[
-              { id: '1', name: 'Sarah Chen', handle: '@sarah_cs', field: 'Computer Science • 3rd Year', location: 'Dubai, UAE', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150', connections: '500+', mutual: 12 },
-              { id: '2', name: 'Ahmed Hassan', handle: '@ahmed_dev', field: 'Computer Science • 4th Year', location: 'Dubai, UAE', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', connections: '300+', mutual: 8 },
-              { id: '3', name: 'Maria Rodriguez', handle: '@maria_ai', field: 'AI/ML • Graduate', location: 'Dubai, UAE', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150', connections: '1000+', mutual: 15 }
-            ].slice(0, activeCategory === 'People' || showAllPeople ? 10 : 2).map((person, index) => (
+            {filteredPeople.slice(0, activeCategory === 'People' || showAllPeople ? 10 : 2).map((person, index) => (
               <TouchableOpacity key={person.id} onPress={() => handlePersonPress(person)} activeOpacity={0.7}>
                 <Animated.View style={[styles.personCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                   <Image source={{ uri: person.avatar }} style={styles.personAvatar} />
                   <View style={styles.personInfo}>
                     <Text style={styles.personName}>{person.name}</Text>
-                    <Text style={styles.personField}>{person.field}</Text>
-                    <Text style={styles.personLocation}>{person.location}</Text>
-                    <Text style={styles.mutualConnections}>{person.mutual} mutual connections</Text>
+                    <Text style={styles.personField}>{person.department} • {person.year}</Text>
+                    <Text style={styles.personLocation}>{person.field}</Text>
+                    <Text style={styles.mutualConnections}>Connect to collaborate</Text>
                   </View>
                   <TouchableOpacity style={styles.connectButton} onPress={(e) => { e.stopPropagation(); }}>
                     <Ionicons name="person-add-outline" size={20} color="#8B1A1A" />
@@ -346,10 +509,7 @@ export default function SearchScreen() {
               </TouchableOpacity>
             </View>
             
-            {[
-              { id: '1', author: 'Tech Society', content: 'Excited to announce our upcoming AI Workshop! Join us for hands-on learning with industry experts.', time: '2h', likes: 45, comments: 12, image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400' },
-              { id: '2', author: 'Sarah Chen', content: 'Just completed my machine learning project on predictive analytics. The results exceeded expectations!', time: '4h', likes: 23, comments: 8, image: null }
-            ].slice(0, activeCategory === 'Posts' || showAllPosts ? 10 : 1).map((post, index) => (
+            {filteredPosts.slice(0, activeCategory === 'Posts' || showAllPosts ? 10 : 1).map((post, index) => (
               <TouchableOpacity key={post.id} onPress={() => handlePostPress(post)} activeOpacity={0.95}>
                 <Animated.View style={[styles.postCard, { opacity: fadeAnim }]}>
                   <View style={styles.postHeader}>
@@ -359,7 +519,7 @@ export default function SearchScreen() {
                       </View>
                       <View>
                         <Text style={styles.postAuthor}>{post.author}</Text>
-                        <Text style={styles.postTime}>{post.time} ago</Text>
+                        <Text style={styles.postTime}>{post.timestamp}</Text>
                       </View>
                     </View>
                     <TouchableOpacity onPress={(e) => { e.stopPropagation(); }}>
@@ -420,10 +580,7 @@ export default function SearchScreen() {
               </TouchableOpacity>
             </View>
             
-            {[
-              { id: '1', title: 'AI-Powered Campus Navigation', description: 'Smart navigation system using machine learning to optimize routes across campus', tech: ['React Native', 'Python', 'TensorFlow'], team: 4, status: 'Active' },
-              { id: '2', title: 'Sustainable Energy Monitor', description: 'IoT-based system to track and optimize energy consumption in university buildings', tech: ['IoT', 'Node.js', 'MongoDB'], team: 3, status: 'Recruiting' }
-            ].slice(0, activeCategory === 'Projects' || showAllProjects ? 10 : 1).map((project, index) => (
+            {filteredProjects.slice(0, activeCategory === 'Projects' || showAllProjects ? 10 : 1).map((project, index) => (
               <TouchableOpacity key={project.id} onPress={() => handleProjectPress(project)} activeOpacity={0.7}>
                 <Animated.View style={[styles.projectCard, { opacity: fadeAnim }]}>
                   <View style={styles.projectHeader}>
@@ -436,15 +593,13 @@ export default function SearchScreen() {
                   </View>
                   <Text style={styles.projectDescription}>{project.description}</Text>
                   <View style={styles.projectTech}>
-                    {project.tech.map((tech, i) => (
-                      <View key={i} style={styles.techChip}>
-                        <Text style={styles.techText}>{tech}</Text>
-                      </View>
-                    ))}
+                    <View style={styles.techChip}>
+                      <Text style={styles.techText}>{project.status}</Text>
+                    </View>
                   </View>
                   <View style={styles.projectFooter}>
-                    <Text style={styles.teamSize}>{project.team} team members</Text>
-                    <TouchableOpacity style={styles.joinButton} onPress={(e) => { e.stopPropagation(); }}>
+                    <Text style={styles.teamSize}>{project.members} team members</Text>
+                    <TouchableOpacity style={styles.joinButton} onPress={(e) => { e.stopPropagation(); handleJoinProject(project.id, project.title); }}>
                       <Text style={styles.joinButtonText}>Join Project</Text>
                     </TouchableOpacity>
                   </View>
@@ -463,21 +618,21 @@ export default function SearchScreen() {
               </TouchableOpacity>
             </View>
             
-            {[
-              { id: '1', name: 'Tech Society', description: 'Leading technology club focused on innovation and skill development', members: 250, category: 'Technology', image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400' },
-              { id: '2', name: 'Entrepreneurship Club', description: 'Supporting student entrepreneurs and startup initiatives', members: 180, category: 'Business', image: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=400' }
-            ].slice(0, activeCategory === 'Clubs' || showAllClubs ? 10 : 1).map((club, index) => (
+            {filteredClubs.slice(0, activeCategory === 'Clubs' || showAllClubs ? 10 : 1).map((club, index) => (
               <TouchableOpacity key={club.id} onPress={() => handleClubPress(club)} activeOpacity={0.7}>
                 <Animated.View style={[styles.clubCard, { opacity: fadeAnim }]}>
-                  <Image source={{ uri: club.image }} style={styles.clubImage} />
+                  <View style={styles.clubImagePlaceholder}>
+                    <Ionicons name="people" size={24} color="#8B1A1A" />
+                  </View>
                   <View style={styles.clubInfo}>
                     <Text style={styles.clubName}>{club.name}</Text>
                     <Text style={styles.clubCategory}>{club.category}</Text>
                     <Text style={styles.clubDescription}>{club.description}</Text>
                     <Text style={styles.clubMembers}>{club.members} members</Text>
                   </View>
-                  <TouchableOpacity style={styles.followButton} onPress={(e) => { e.stopPropagation(); }}>
-                    <Text style={styles.followButtonText}>Follow</Text>
+                  <TouchableOpacity style={styles.interestedButton} onPress={(e) => { e.stopPropagation(); }}>
+                    <Ionicons name="flame" size={16} color="#FF6B35" />
+                    <Text style={styles.interestedButtonText}>Interested</Text>
                   </TouchableOpacity>
                 </Animated.View>
               </TouchableOpacity>
@@ -487,6 +642,12 @@ export default function SearchScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <PostDetailModal
+        visible={showPostModal}
+        post={selectedPost}
+        onClose={() => setShowPostModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -494,179 +655,78 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#fef2f2',
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 15,
-    backgroundColor: '#FFFFFF',
+    paddingBottom: 10,
+    backgroundColor: '#fef2f2',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 25,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     paddingHorizontal: 15,
     height: 50,
     borderWidth: 1,
-    borderColor: '#7f1d1d',
-  },
-  searchIcon: {
-    marginRight: 10,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+    shadowColor: '#991B1B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
+    color: '#1F2937',
+    marginLeft: 10,
   },
   filterButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'transparent',
+    padding: 5,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 100,
   },
   filterPanel: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+    shadowColor: '#991B1B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  filterHeaderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  closeFilterButton: {
+    padding: 5,
   },
   filterSection: {
     marginBottom: 16,
   },
   filterTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#374151',
     marginBottom: 12,
-  },
-  filterScrollView: {
-    flexDirection: 'row',
-  },
-  filterChip: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  filterChipActive: {
-    backgroundColor: '#8B1A1A',
-    borderColor: '#8B1A1A',
-  },
-  filterChipText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  filterChipTextActive: {
-    color: '#FFFFFF',
-  },
-  filterActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  clearButton: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginRight: 8,
-    alignItems: 'center',
-  },
-  clearButtonText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-  applyButton: {
-    flex: 1,
-    backgroundColor: '#8B1A1A',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginLeft: 8,
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 4,
-    paddingVertical: 20,
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    height: 120,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  buttonGradient: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  buttonSubtext: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  filterHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  filterHeaderTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  closeFilterButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FEF2F2',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   filterGrid: {
     flexDirection: 'row',
@@ -674,61 +734,45 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   modernFilterChip: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#fef2f2',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 6,
-    marginBottom: 6,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   modernFilterChipActive: {
-    backgroundColor: '#8B1A1A',
-    borderColor: '#8B1A1A',
-    shadowColor: '#8B1A1A',
-    shadowOpacity: 0.3,
-    elevation: 3,
-  },
-  modernFilterText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#374151',
+    backgroundColor: '#991B1B',
+    borderColor: '#991B1B',
   },
   modernFilterChipText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500',
     color: '#374151',
   },
   modernFilterChipTextActive: {
     color: '#FFFFFF',
-    fontWeight: '600',
   },
   chipIcon: {
-    marginLeft: 6,
+    marginLeft: 8,
   },
   modernFilterActions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 24,
-    paddingTop: 20,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
   modernClearButton: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#D1D5DB',
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -736,127 +780,108 @@ const styles = StyleSheet.create({
   },
   modernClearButtonText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
+    fontWeight: '600',
+    color: '#374151',
   },
   modernApplyButton: {
-    flex: 2,
-    borderRadius: 12,
+    flex: 1,
+    borderRadius: 20,
     overflow: 'hidden',
   },
   applyButtonGradient: {
+    flex: 1,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
     gap: 8,
   },
   modernApplyButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    marginLeft: 8,
   },
-
-  // LinkedIn-style section styles
   sectionContainer: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
     marginBottom: 16,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  sectionLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  sectionLabel: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
   },
   seeAllText: {
-    color: '#8B1A1A',
     fontSize: 14,
     fontWeight: '600',
+    color: '#991B1B',
   },
-
-  // People section styles
   personCard: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
+    alignItems: 'center',
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+    shadowColor: '#991B1B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   personAvatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    marginRight: 12,
+    marginRight: 16,
   },
   personInfo: {
     flex: 1,
   },
   personName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
+    fontWeight: 'bold',
+    color: '#111827',
   },
   personField: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 2,
+    marginTop: 2,
   },
   personLocation: {
     fontSize: 12,
     color: '#9CA3AF',
-    marginBottom: 4,
-  },
-  mutualConnections: {
-    fontSize: 12,
-    color: '#8B1A1A',
-    fontWeight: '500',
+    marginTop: 4,
   },
   connectButton: {
-    width: 40,
-    height: 40,
+    backgroundColor: '#fef2f2',
+    padding: 10,
     borderRadius: 20,
-    backgroundColor: '#FEF2F2',
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: 'rgba(127, 29, 29, 0.1)',
   },
-
-  // Posts section styles
+  searchLoader: {
+    padding: 8,
+  },
   postCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+    shadowColor: '#991B1B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   postHeader: {
     flexDirection: 'row',
@@ -872,20 +897,20 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#fef2f2',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   authorInitial: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#991B1B',
   },
   postAuthor: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
   },
   postTime: {
     fontSize: 12,
@@ -900,8 +925,8 @@ const styles = StyleSheet.create({
   postImage: {
     width: '100%',
     height: 200,
-    borderRadius: 8,
-    marginBottom: 12,
+    borderRadius: 12,
+    marginTop: 12,
   },
   postActions: {
     flexDirection: 'row',
@@ -913,26 +938,24 @@ const styles = StyleSheet.create({
   postAction: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   postActionText: {
-    marginLeft: 6,
-    fontSize: 12,
+    fontSize: 14,
     color: '#6B7280',
   },
-
-  // Projects section styles
   projectCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+    shadowColor: '#991B1B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   projectHeader: {
     flexDirection: 'row',
@@ -941,137 +964,143 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   projectTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
     flex: 1,
-    marginRight: 12,
   },
   projectStatus: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   statusActive: {
     backgroundColor: '#D1FAE5',
   },
+  statusActiveText: {
+    color: '#065F46',
+    fontWeight: '600',
+  },
   statusRecruiting: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#DBEAFE',
+  },
+  statusRecruitingText: {
+    color: '#1E40AF',
+    fontWeight: '600',
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '500',
-  },
-  statusActiveText: {
-    color: '#065F46',
-  },
-  statusRecruitingText: {
-    color: '#92400E',
   },
   projectDescription: {
     fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
+    color: '#374151',
     marginBottom: 12,
   },
   projectTech: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 12,
   },
   techChip: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
+    backgroundColor: '#fef2f2',
     paddingVertical: 4,
+    paddingHorizontal: 10,
     borderRadius: 12,
-    marginRight: 8,
-    marginBottom: 4,
   },
   techText: {
     fontSize: 12,
-    color: '#6B7280',
     fontWeight: '500',
+    color: '#991B1B',
   },
   projectFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
   },
   teamSize: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    fontSize: 14,
+    color: '#6B7280',
   },
   joinButton: {
-    backgroundColor: '#8B1A1A',
-    paddingHorizontal: 16,
+    backgroundColor: '#991B1B',
     paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 20,
   },
   joinButtonText: {
     color: '#FFFFFF',
-    fontSize: 12,
     fontWeight: '600',
   },
-
-  // Clubs section styles
   clubCard: {
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
+    alignItems: 'center',
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+    shadowColor: '#991B1B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  clubImage: {
-    width: '100%',
-    height: 120,
-    borderRadius: 8,
-    marginBottom: 12,
+  clubImagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: '#fef2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
   clubInfo: {
-    marginBottom: 12,
+    flex: 1,
   },
   clubName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
+    fontWeight: 'bold',
+    color: '#111827',
   },
   clubCategory: {
-    fontSize: 12,
-    color: '#8B1A1A',
-    fontWeight: '500',
-    marginBottom: 6,
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
   },
   clubDescription: {
     fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    marginBottom: 6,
+    color: '#374151',
+    marginTop: 8,
   },
   clubMembers: {
     fontSize: 12,
     color: '#9CA3AF',
+    marginTop: 4,
   },
-  followButton: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#8B1A1A',
-    paddingHorizontal: 16,
+  interestedButton: {
+    backgroundColor: '#fef2f2',
     paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 20,
-    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  followButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+  mutualConnections: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  interestedButtonText: {
+    color: '#991B1B',
     fontWeight: '600',
-    flex: 1,
-    textAlign: 'center',
   },
 });

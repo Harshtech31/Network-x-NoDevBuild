@@ -1,21 +1,21 @@
-import React, { useState, useRef } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
+import React, { useRef, useState } from 'react';
 import {
-  View,
+  Alert,
+  Animated,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  Image,
-  Alert,
-  Modal,
-  SafeAreaView,
-  Animated,
-  StyleSheet,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
-import { router } from 'expo-router';
 
 interface Document {
   name: string;
@@ -25,6 +25,7 @@ interface Document {
 }
 
 export default function CreateScreen() {
+  const [postType, setPostType] = useState<'post' | 'event' | 'project' | 'survey'>('post');
   const [postText, setPostText] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -37,6 +38,24 @@ export default function CreateScreen() {
   const [attachedDocuments, setAttachedDocuments] = useState<Document[]>([]);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  
+  // Survey specific states
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  
+  // Event specific states
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
+  const [eventLocation, setEventLocation] = useState('');
+  
+  // Project specific states
+  const [projectTitle, setProjectTitle] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+  const [projectDuration, setProjectDuration] = useState('');
+  const [projectTeamSize, setProjectTeamSize] = useState('');
+  const [projectSkills, setProjectSkills] = useState<string[]>([]);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -54,6 +73,133 @@ export default function CreateScreen() {
     'Phoenix, AZ', 'Philadelphia, PA', 'San Antonio, TX', 'San Diego, CA',
     'Dallas, TX', 'San Jose, CA'
   ];
+
+  // Validation functions
+  const validatePost = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!postText.trim()) {
+      errors.postText = 'Post content is required';
+    } else if (postText.trim().length < 10) {
+      errors.postText = 'Post content must be at least 10 characters';
+    } else if (postText.trim().length > 2000) {
+      errors.postText = 'Post content must be less than 2000 characters';
+    }
+    
+    return errors;
+  };
+
+  const validateEvent = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!eventTitle.trim()) {
+      errors.eventTitle = 'Event title is required';
+    } else if (eventTitle.trim().length < 3) {
+      errors.eventTitle = 'Event title must be at least 3 characters';
+    }
+    
+    if (!postText.trim()) {
+      errors.postText = 'Event description is required';
+    } else if (postText.trim().length < 20) {
+      errors.postText = 'Event description must be at least 20 characters';
+    }
+    
+    if (!eventDate.trim()) {
+      errors.eventDate = 'Event date is required';
+    } else {
+      const selectedDate = new Date(eventDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate < today) {
+        errors.eventDate = 'Event date cannot be in the past';
+      }
+    }
+    
+    if (!eventTime.trim()) {
+      errors.eventTime = 'Event time is required';
+    }
+    
+    if (!eventLocation.trim()) {
+      errors.eventLocation = 'Event location is required';
+    }
+    
+    return errors;
+  };
+
+  const validateProject = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!projectTitle.trim()) {
+      errors.projectTitle = 'Project title is required';
+    } else if (projectTitle.trim().length < 5) {
+      errors.projectTitle = 'Project title must be at least 5 characters';
+    }
+    
+    if (!projectDescription.trim()) {
+      errors.projectDescription = 'Project description is required';
+    } else if (projectDescription.trim().length < 50) {
+      errors.projectDescription = 'Project description must be at least 50 characters';
+    }
+    
+    if (!projectDuration.trim()) {
+      errors.projectDuration = 'Project duration is required';
+    }
+    
+    if (!projectTeamSize.trim()) {
+      errors.projectTeamSize = 'Team size is required';
+    } else if (isNaN(Number(projectTeamSize)) || Number(projectTeamSize) < 1) {
+      errors.projectTeamSize = 'Team size must be a valid number greater than 0';
+    }
+    
+    if (projectSkills.length === 0) {
+      errors.projectSkills = 'At least one skill is required';
+    }
+    
+    return errors;
+  };
+
+  const validateSurvey = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!pollQuestion.trim()) {
+      errors.pollQuestion = 'Survey question is required';
+    } else if (pollQuestion.trim().length < 10) {
+      errors.pollQuestion = 'Survey question must be at least 10 characters';
+    }
+    
+    const validOptions = pollOptions.filter(option => option.trim().length > 0);
+    if (validOptions.length < 2) {
+      errors.pollOptions = 'At least 2 survey options are required';
+    }
+    
+    if (!postText.trim()) {
+      errors.postText = 'Survey description is required';
+    }
+    
+    return errors;
+  };
+
+  const validateForm = () => {
+    let errors: {[key: string]: string} = {};
+    
+    switch (postType) {
+      case 'post':
+        errors = validatePost();
+        break;
+      case 'event':
+        errors = validateEvent();
+        break;
+      case 'project':
+        errors = validateProject();
+        break;
+      case 'survey':
+        errors = validateSurvey();
+        break;
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const pickImageFromGallery = async () => {
     try {
@@ -142,29 +288,65 @@ export default function CreateScreen() {
     setAttachedDocuments(attachedDocuments.filter((_, i) => i !== index));
   };
 
-  const handlePost = () => {
-    setShowSuccessAnimation(true);
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
-    ]).start();
-
-    setTimeout(() => {
-      setShowSuccessAnimation(false);
-      setPostText('');
-      setImages([]);
-      setSelectedTags([]);
-      setSelectedLocations([]);
-      setPollQuestion('');
-      setPollOptions(['', '']);
-      setAttachedDocuments([]);
-      setCustomTagInput('');
+  const handlePost = async () => {
+    // Clear previous validation errors
+    setValidationErrors({});
+    
+    // Validate form
+    if (!validateForm()) {
+      Alert.alert('Validation Error', 'Please fix the errors below and try again.');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      fadeAnim.setValue(0);
-      scaleAnim.setValue(0);
-      slideAnim.setValue(50);
-    }, 2500);
+      // Show success animation
+      setShowSuccessAnimation(true);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(scaleAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ]).start(() => {
+        setTimeout(() => {
+          setShowSuccessAnimation(false);
+          fadeAnim.setValue(0);
+          scaleAnim.setValue(0);
+          
+          // Reset form
+          resetForm();
+          
+          router.back();
+        }, 2000);
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create post. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setPostText('');
+    setImages([]);
+    setSelectedTags([]);
+    setSelectedLocations([]);
+    setPollQuestion('');
+    setPollOptions(['', '']);
+    setAttachedDocuments([]);
+    setEventTitle('');
+    setEventDate('');
+    setEventTime('');
+    setEventLocation('');
+    setProjectTitle('');
+    setProjectDescription('');
+    setProjectDuration('');
+    setProjectTeamSize('');
+    setProjectSkills([]);
+    setIsAnonymous(false);
+    setValidationErrors({});
   };
 
   const handleDocumentPress = () => {
@@ -182,7 +364,7 @@ export default function CreateScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const newDocument: Document = {
-          name: asset.name,
+          name: asset.name || 'Unknown Document',
           uri: asset.uri,
           size: asset.size || 0,
           mimeType: asset.mimeType || 'application/octet-stream',
@@ -192,7 +374,7 @@ export default function CreateScreen() {
       }
     } catch (error) {
       console.error('Error picking document:', error);
-      Alert.alert('Error', 'Failed to pick document');
+      Alert.alert('Error', 'Failed to pick document. Please try again.');
     }
   };
 
@@ -202,7 +384,20 @@ export default function CreateScreen() {
     }, 300);
   };
 
-  const isPostButtonEnabled = postText.trim().length > 0 || images.length > 0;
+  const isPostButtonEnabled = () => {
+    switch (postType) {
+      case 'post':
+        return postText.trim().length > 0 || images.length > 0;
+      case 'survey':
+        return postText.trim().length > 0;
+      case 'event':
+        return eventTitle.trim().length > 0 && postText.trim().length > 0 && eventDate.trim().length > 0;
+      case 'project':
+        return projectTitle.trim().length > 0 && projectDescription.trim().length > 0;
+      default:
+        return false;
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -211,16 +406,36 @@ export default function CreateScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New post</Text>
+        <Text style={styles.headerTitle}>Create {postType}</Text>
         <TouchableOpacity 
           onPress={handlePost}
           disabled={!isPostButtonEnabled}
           style={[styles.postButton, !isPostButtonEnabled && styles.postButtonDisabled]}
         >
           <Text style={[styles.postButtonText, !isPostButtonEnabled && styles.postButtonTextDisabled]}>
-            Post
+            {postType === 'post' ? 'Post' : postType === 'event' ? 'Create Event' : postType === 'project' ? 'Create Project' : 'Create Survey'}
           </Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Post Type Toggle */}
+      <View style={styles.postTypeContainer}>
+        {(['post', 'event', 'project', 'survey'] as const).map((type) => (
+          <TouchableOpacity
+            key={type}
+            style={[styles.postTypeButton, postType === type && styles.postTypeButtonActive]}
+            onPress={() => setPostType(type)}
+          >
+            <Ionicons 
+              name={type === 'post' ? 'chatbubble-outline' : type === 'event' ? 'calendar-outline' : type === 'project' ? 'briefcase-outline' : 'bar-chart-outline'} 
+              size={20} 
+              color={postType === type ? '#FFFFFF' : '#991B1B'} 
+            />
+            <Text style={[styles.postTypeText, postType === type && styles.postTypeTextActive]}>
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <ScrollView ref={scrollViewRef} style={styles.content} showsVerticalScrollIndicator={false}>
@@ -232,16 +447,132 @@ export default function CreateScreen() {
           <Text style={styles.username}>John Doe</Text>
         </View>
 
-        {/* Text Input */}
-        <TextInput
-          style={styles.textInput}
-          placeholder="What's on your mind?"
-          placeholderTextColor="#999"
-          value={postText}
-          onChangeText={setPostText}
-          multiline
-          textAlignVertical="top"
-        />
+        {/* Dynamic Content Based on Post Type */}
+        {postType === 'post' && (
+          <View>
+            <TextInput
+              style={[styles.textInput, validationErrors.postText && styles.inputError]}
+              placeholder="What's on your mind?"
+              placeholderTextColor="#999"
+              value={postText}
+              onChangeText={setPostText}
+              multiline
+              textAlignVertical="top"
+            />
+            {validationErrors.postText && (
+              <Text style={styles.errorText}>{validationErrors.postText}</Text>
+            )}
+          </View>
+        )}
+
+        {postType === 'survey' && (
+          <View>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Describe your startup idea, ask for feedback, or share your story..."
+              placeholderTextColor="#999"
+              value={postText}
+              onChangeText={setPostText}
+              multiline
+              textAlignVertical="top"
+            />
+            
+            {/* Anonymous Toggle */}
+            <View style={styles.anonymousContainer}>
+              <Text style={styles.anonymousLabel}>Anonymous Survey</Text>
+              <TouchableOpacity 
+                style={[styles.toggleButton, isAnonymous && styles.toggleButtonActive]}
+                onPress={() => setIsAnonymous(!isAnonymous)}
+              >
+                <View style={[styles.toggleCircle, isAnonymous && styles.toggleCircleActive]} />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Fixed Survey Options Preview */}
+            <View style={styles.surveyOptionsContainer}>
+              <Text style={styles.surveyOptionsTitle}>Voting Options:</Text>
+              <View style={styles.surveyOption}>
+                <Text style={styles.surveyOptionEmoji}>✅</Text>
+                <Text style={styles.surveyOptionText}>Good Idea</Text>
+              </View>
+              <View style={styles.surveyOption}>
+                <Text style={styles.surveyOptionEmoji}>❌</Text>
+                <Text style={styles.surveyOptionText}>Needs improvement</Text>
+              </View>
+              <View style={styles.surveyOption}>
+                <Text style={styles.surveyOptionEmoji}>💡</Text>
+                <Text style={styles.surveyOptionText}>Has Potential</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {postType === 'event' && (
+          <View>
+            <TextInput
+              style={[styles.inputField, validationErrors.eventTitle && styles.inputError]}
+              placeholder="Event Title"
+              placeholderTextColor="#999"
+              value={eventTitle}
+              onChangeText={setEventTitle}
+            />
+            {validationErrors.eventTitle && (
+              <Text style={styles.errorText}>{validationErrors.eventTitle}</Text>
+            )}
+            
+            <TextInput
+              style={[styles.textInput, validationErrors.postText && styles.inputError]}
+              placeholder="Event Description"
+              placeholderTextColor="#999"
+              value={postText}
+              onChangeText={setPostText}
+              multiline
+              textAlignVertical="top"
+            />
+            {validationErrors.postText && (
+              <Text style={styles.errorText}>{validationErrors.postText}</Text>
+            )}
+            
+            <View style={styles.eventDetailsContainer}>
+              <View style={{ flex: 1 }}>
+                <TextInput
+                  style={[styles.halfInputField, validationErrors.eventDate && styles.inputError]}
+                  placeholder="Date (MM/DD/YYYY)"
+                  placeholderTextColor="#999"
+                  value={eventDate}
+                  onChangeText={setEventDate}
+                />
+                {validationErrors.eventDate && (
+                  <Text style={styles.errorText}>{validationErrors.eventDate}</Text>
+                )}
+              </View>
+              
+              <View style={{ flex: 1 }}>
+                <TextInput
+                  style={[styles.halfInputField, validationErrors.eventTime && styles.inputError]}
+                  placeholder="Time"
+                  placeholderTextColor="#999"
+                  value={eventTime}
+                  onChangeText={setEventTime}
+                />
+                {validationErrors.eventTime && (
+                  <Text style={styles.errorText}>{validationErrors.eventTime}</Text>
+                )}
+              </View>
+            </View>
+            
+            <TextInput
+              style={[styles.inputField, validationErrors.eventLocation && styles.inputError]}
+              placeholder="Event Location"
+              placeholderTextColor="#999"
+              value={eventLocation}
+              onChangeText={setEventLocation}
+            />
+            {validationErrors.eventLocation && (
+              <Text style={styles.errorText}>{validationErrors.eventLocation}</Text>
+            )}
+          </View>
+        )}
 
         {/* Image Preview */}
         {images.length > 0 && (
@@ -286,7 +617,7 @@ export default function CreateScreen() {
           <View style={styles.documentsContainer}>
             {attachedDocuments.map((doc, index) => (
               <View key={index} style={styles.documentItem}>
-                <Ionicons name="document-text" size={24} color="#8B1A1A" />
+                <Ionicons name="document-text" size={24} color="#991B1B" />
                 <View style={styles.documentInfo}>
                   <Text style={styles.documentName}>{doc.name}</Text>
                   <Text style={styles.documentSize}>
@@ -306,7 +637,7 @@ export default function CreateScreen() {
           <View style={styles.locationContainer}>
             {selectedLocations.map((location, index) => (
               <View key={index} style={styles.locationChip}>
-                <Ionicons name="location" size={16} color="#8B1A1A" />
+                <Ionicons name="location" size={16} color="#991B1B" />
                 <Text style={styles.locationText}>{location}</Text>
                 <TouchableOpacity onPress={() => removeLocation(location)}>
                   <Ionicons name="close" size={16} color="#666" />
@@ -319,19 +650,19 @@ export default function CreateScreen() {
         {/* Action Buttons */}
         <View style={styles.actionRow}>
           <TouchableOpacity style={styles.actionButton} onPress={pickImageFromGallery}>
-            <Ionicons name="image" size={24} color="#8B1A1A" />
+            <Ionicons name="image" size={24} color="#991B1B" />
             <Text style={styles.actionButtonLabel}>Photo</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={() => setShowLocationModal(true)}>
-            <Ionicons name="location" size={24} color="#8B1A1A" />
+            <Ionicons name="location" size={24} color="#991B1B" />
             <Text style={styles.actionButtonLabel}>Location</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={() => setShowPollModal(true)}>
-            <Ionicons name="bar-chart" size={24} color="#8B1A1A" />
+            <Ionicons name="bar-chart" size={24} color="#991B1B" />
             <Text style={styles.actionButtonLabel}>Poll</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={handleDocumentPress}>
-            <Ionicons name="document" size={24} color="#8B1A1A" />
+            <Ionicons name="document" size={24} color="#991B1B" />
             <Text style={styles.actionButtonLabel}>Document</Text>
           </TouchableOpacity>
         </View>
@@ -355,7 +686,7 @@ export default function CreateScreen() {
             />
             {customTagInput.trim() && (
               <TouchableOpacity style={styles.addTagButton} onPress={addCustomTag}>
-                <Ionicons name="add" size={20} color="#8B1A1A" />
+                <Ionicons name="add" size={20} color="#991B1B" />
               </TouchableOpacity>
             )}
           </View>
@@ -424,7 +755,7 @@ export default function CreateScreen() {
                     {location}
                   </Text>
                   {selectedLocations.includes(location) && (
-                    <Ionicons name="checkmark" size={20} color="#8B1A1A" />
+                    <Ionicons name="checkmark" size={20} color="#991B1B" />
                   )}
                 </TouchableOpacity>
               ))}
@@ -470,7 +801,7 @@ export default function CreateScreen() {
               ))}
               {pollOptions.length < 4 && (
                 <TouchableOpacity style={styles.addOptionButton} onPress={addPollOption}>
-                  <Ionicons name="add" size={20} color="#8B1A1A" />
+                  <Ionicons name="add" size={20} color="#991B1B" />
                   <Text style={styles.addOptionText}>Add option</Text>
                 </TouchableOpacity>
               )}
@@ -499,8 +830,8 @@ export default function CreateScreen() {
               ]}
             >
               <Ionicons name="checkmark-circle" size={60} color="#4CAF50" />
-              <Text style={styles.successTitle}>Post Created!</Text>
-              <Text style={styles.successSubtitle}>Your post has been shared successfully</Text>
+              <Text style={styles.successTitle}>{postType.charAt(0).toUpperCase() + postType.slice(1)} Created!</Text>
+              <Text style={styles.successSubtitle}>Your {postType} has been shared successfully</Text>
             </Animated.View>
           </View>
         </Modal>
@@ -518,7 +849,7 @@ export default function CreateScreen() {
             </View>
             <View style={styles.documentOptions}>
               <TouchableOpacity style={styles.documentOption} onPress={pickDocument}>
-                <Ionicons name="document" size={32} color="#8B1A1A" />
+                <Ionicons name="document" size={32} color="#991B1B" />
                 <Text style={styles.documentOptionText}>Browse Files</Text>
               </TouchableOpacity>
             </View>
@@ -554,7 +885,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   postButton: {
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -583,7 +914,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -712,7 +1043,7 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 14,
-    color: '#8B1A1A',
+    color: '#991B1B',
     marginLeft: 4,
     marginRight: 4,
   },
@@ -779,7 +1110,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   tagChipSelected: {
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     borderColor: '#8B1A1A',
   },
   tagText: {
@@ -803,7 +1134,7 @@ const styles = StyleSheet.create({
   },
   customTagText: {
     fontSize: 14,
-    color: '#8B1A1A',
+    color: '#991B1B',
     marginRight: 4,
   },
   modalOverlay: {
@@ -850,7 +1181,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   locationItemTextSelected: {
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontWeight: '500',
   },
   pollModalContent: {
@@ -898,13 +1229,13 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   addOptionText: {
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontSize: 16,
     fontWeight: '500',
     marginLeft: 8,
   },
   createPollButton: {
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -959,8 +1290,149 @@ const styles = StyleSheet.create({
   documentOptionText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#8B1A1A',
+    color: '#991B1B',
     marginTop: 8,
+  },
+  postTypeContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F9FAFB',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  postTypeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  postTypeButtonActive: {
+    backgroundColor: '#991B1B',
+  },
+  postTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#991B1B',
+  },
+  postTypeTextActive: {
+    color: '#FFFFFF',
+  },
+  inputField: {
+    fontSize: 16,
+    color: '#1F2937',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  halfInputField: {
+    fontSize: 16,
+    color: '#1F2937',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    flex: 1,
+  },
+  eventDetailsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  projectDetailsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  anonymousContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  anonymousLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  toggleButton: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleButtonActive: {
+    backgroundColor: '#991B1B',
+  },
+  toggleCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignSelf: 'flex-start',
+  },
+  toggleCircleActive: {
+    alignSelf: 'flex-end',
+  },
+  surveyOptionsContainer: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  surveyOptionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  surveyOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  surveyOptionEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  surveyOptionText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
 

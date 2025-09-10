@@ -1,20 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Animated,
-  Dimensions,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  FlatList,
-  Modal,
+    Animated,
+    Dimensions,
+    FlatList,
+    Image,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    Alert,
+    Share,
 } from 'react-native';
+import PostDetailModal from '../../components/PostDetailModal';
 
 const { width } = Dimensions.get('window');
 
@@ -22,12 +27,23 @@ export default function ProfileScreen() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [photoType, setPhotoType] = useState('');
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [profileImage, setProfileImage] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80');
+  const [coverImage, setCoverImage] = useState('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2340&q=80');
+  const [profileStats, setProfileStats] = useState({
+    projects: 12,
+    collaborations: 8,
+    events: 25,
+    connections: 156
+  });
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const tabScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     Animated.parallel([
@@ -90,8 +106,88 @@ export default function ProfileScreen() {
     setShowPhotoModal(true);
   };
 
+  const handlePostPress = (post: any) => {
+    setSelectedPost(post);
+    setShowPostModal(true);
+  };
+
   const handleUniversityPress = (university: string) => {
     console.log(`Navigating to ${university} page`);
+  };
+
+  // Image picker functionality
+  const handleImagePicker = async (type: 'camera' | 'gallery') => {
+    try {
+      let result;
+      if (type === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Camera permission is required to take photos');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: photoType === 'cover' ? [16, 9] : [1, 1],
+          quality: 1,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Gallery permission is required to select photos');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: photoType === 'cover' ? [16, 9] : [1, 1],
+          quality: 1,
+        });
+      }
+
+      if (!result.canceled && result.assets[0]) {
+        if (photoType === 'cover') {
+          setCoverImage(result.assets[0].uri);
+        } else {
+          setProfileImage(result.assets[0].uri);
+        }
+        setShowPhotoModal(false);
+        Alert.alert('Success', `${photoType === 'cover' ? 'Cover' : 'Profile'} photo updated!`);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update photo');
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    if (photoType === 'cover') {
+      setCoverImage('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2340&q=80');
+    } else {
+      setProfileImage('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80');
+    }
+    setShowPhotoModal(false);
+    Alert.alert('Success', `${photoType === 'cover' ? 'Cover' : 'Profile'} photo removed!`);
+  };
+
+  // Share profile functionality
+  const handleShareProfile = async () => {
+    try {
+      const profileUrl = 'https://campusconnect.app/profile/alexj_dev';
+      const shareOptions = {
+        message: `Check out Alex Johnson's profile on Campus Connect: ${profileUrl}`,
+        url: profileUrl,
+        title: 'Alex Johnson - Campus Connect Profile'
+      };
+      
+      await Share.share(shareOptions);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to share profile');
+    }
+  };
+
+  // Edit profile navigation
+  const handleEditProfile = () => {
+    router.push('/profile/editProfile');
   };
 
   const renderOverview = () => (
@@ -216,53 +312,98 @@ export default function ProfileScreen() {
 
   const renderProjects = () => (
     <Animated.View style={{ opacity: fadeAnim }}>
-      <View style={styles.projectsGrid}>
-        {[1, 2, 3, 4].map((project) => (
-          <TouchableOpacity key={project} style={styles.projectGridCard}>
-            <View style={styles.projectImagePlaceholder}>
-              <LinearGradient colors={['#ea580c', '#fed7aa']} style={styles.projectGradient} />
+      <View style={styles.projectsList}>
+        {[
+          {
+            id: 1,
+            title: 'Campus Sustainability Tracker',
+            description: 'AI-powered app to track and reduce campus carbon footprint',
+            status: 'Active',
+            tags: ['AI', 'Sustainability', 'Mobile App'],
+            collaborators: 4,
+            likes: 23,
+            comments: 6,
+            progress: 75,
+            gradient: ['#10B981', '#34D399']
+          },
+          {
+            id: 2,
+            title: 'Student Mental Health Platform',
+            description: 'Peer support platform with mood tracking and resources',
+            status: 'Completed',
+            tags: ['Healthcare', 'React', 'Node.js'],
+            collaborators: 5,
+            likes: 31,
+            comments: 8,
+            progress: 100,
+            gradient: ['#3B82F6', '#60A5FA']
+          },
+          {
+            id: 3,
+            title: 'Smart Campus Navigation',
+            description: 'AR-based indoor navigation system for university buildings',
+            status: 'In Progress',
+            tags: ['AR', 'Flutter', 'Firebase'],
+            collaborators: 3,
+            likes: 18,
+            comments: 4,
+            progress: 45,
+            gradient: ['#8B5CF6', '#A78BFA']
+          }
+        ].map((project) => (
+          <TouchableOpacity key={project.id} style={styles.modernProjectCard}>
+            <View style={styles.modernProjectHeader}>
+              <View style={styles.projectIconContainer}>
+                <LinearGradient colors={project.gradient as any} style={styles.projectIcon}>
+                  <Ionicons name="code-slash" size={20} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+              <View style={styles.projectHeaderInfo}>
+                <Text style={styles.modernProjectTitle}>{project.title}</Text>
+                <View style={[styles.modernStatusBadge, 
+                  project.status === 'Active' && styles.activeStatusBadge,
+                  project.status === 'Completed' && styles.completedStatusBadge,
+                  project.status === 'In Progress' && styles.inProgressStatusBadge
+                ]}>
+                  <Text style={[styles.modernStatusText,
+                    project.status === 'Active' && styles.modernActiveStatusText,
+                    project.status === 'Completed' && styles.modernCompletedStatusText,
+                    project.status === 'In Progress' && styles.inProgressStatusText
+                  ]}>{project.status}</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.projectContent}>
-              <Text style={styles.projectTitle}>Campus Sustainability Tracker</Text>
-              <Text style={styles.projectDescription}>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore... Read more
-              </Text>
-              <View style={styles.projectTags}>
-                <View style={styles.projectTag}>
-                  <Text style={styles.projectTagText}>AI</Text>
+            
+            <Text style={styles.modernProjectDescription}>{project.description}</Text>
+            
+            <View style={styles.modernProjectTags}>
+              {project.tags.map((tag, index) => (
+                <View key={index} style={styles.modernProjectTag}>
+                  <Text style={styles.modernProjectTagText}>{tag}</Text>
                 </View>
-                <View style={styles.projectTag}>
-                  <Text style={styles.projectTagText}>Sustainability</Text>
-                </View>
-                <View style={styles.projectTag}>
-                  <Text style={styles.projectTagText}>Mobile App</Text>
-                </View>
+              ))}
+            </View>
+            
+            <View style={styles.modernProjectMetrics}>
+              <View style={styles.modernMetric}>
+                <Ionicons name="people-outline" size={16} color="#6B7280" />
+                <Text style={styles.modernMetricText}>{project.collaborators}</Text>
               </View>
-              <View style={styles.projectStatus}>
-                <View style={[styles.statusBadge, styles.activeBadge]}>
-                  <Text style={styles.statusText}>Active</Text>
-                </View>
+              <View style={styles.modernMetric}>
+                <Ionicons name="heart-outline" size={16} color="#6B7280" />
+                <Text style={styles.modernMetricText}>{project.likes}</Text>
               </View>
-              <View style={styles.projectMetrics}>
-                <View style={styles.metric}>
-                  <Ionicons name="people-outline" size={14} color="#666666" />
-                  <Text style={styles.metricText}>4</Text>
-                </View>
-                <View style={styles.metric}>
-                  <Ionicons name="heart-outline" size={14} color="#666666" />
-                  <Text style={styles.metricText}>23</Text>
-                </View>
-                <View style={styles.metric}>
-                  <Ionicons name="chatbubble-outline" size={14} color="#666666" />
-                  <Text style={styles.metricText}>6</Text>
-                </View>
+              <View style={styles.modernMetric}>
+                <Ionicons name="chatbubble-outline" size={16} color="#6B7280" />
+                <Text style={styles.modernMetricText}>{project.comments}</Text>
               </View>
             </View>
           </TouchableOpacity>
         ))}
       </View>
-      <TouchableOpacity style={styles.seeAllButton}>
-        <Text style={styles.seeAllText}>see all projects</Text>
+      <TouchableOpacity style={styles.modernSeeAllButton}>
+        <Text style={styles.modernSeeAllText}>View All Projects</Text>
+        <Ionicons name="arrow-forward" size={16} color="#8B1A1A" />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -317,7 +458,7 @@ export default function ProfileScreen() {
             image: 'https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?w=400&h=300&fit=crop'
           }
         ].map((post) => (
-          <View key={post.id} style={styles.postCard}>
+          <TouchableOpacity key={post.id} style={styles.postCard} onPress={() => handlePostPress(post)}>
             <View style={styles.postHeader}>
               <Image 
                 source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face' }}
@@ -345,9 +486,15 @@ export default function ProfileScreen() {
                 <Ionicons name="share-outline" size={20} color="#6B7280" />
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
+
+      <PostDetailModal
+        visible={showPostModal}
+        post={selectedPost}
+        onClose={() => setShowPostModal(false)}
+      />
     </Animated.View>
   );
 
@@ -387,7 +534,7 @@ export default function ProfileScreen() {
           <View style={styles.coverPhotoContainer}>
             <TouchableOpacity onPress={() => handlePhotoPress('cover')}>
               <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2340&q=80' }}
+                source={{ uri: coverImage }}
                 style={styles.coverPhoto}
               />
               <View style={styles.editCoverOverlay}>
@@ -399,7 +546,7 @@ export default function ProfileScreen() {
           <View style={styles.profileCard}>
             <TouchableOpacity onPress={() => handlePhotoPress('profile')} style={styles.profileImageContainer}>
               <Animated.Image
-                source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80' }}
+                source={{ uri: profileImage }}
                 style={[styles.profileImage, { transform: [{ scale: pulseAnim }] }]}
               />
               <View style={styles.editProfileImageOverlay}>
@@ -418,44 +565,48 @@ export default function ProfileScreen() {
               <Text style={styles.joinedText}>Joined September 2023</Text>
             </View>
             
-            <Text style={[styles.bioText, { marginBottom: 20 }]}>
-              Computer Science Student passionate about AI/ML and sustainable technology. 
-              Building the future one line of code at a time.
+            <Text style={styles.bioText}>
+              Computer Science student passionate about AI and sustainable technology. 
+              Building innovative solutions for tomorrow's challenges.
             </Text>
-            
-            <View style={[styles.actionButtons, { marginBottom: 4 }]}>
-              <TouchableOpacity style={styles.editProfileBtn}>
-                <Ionicons name="pencil-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.editProfileBtnText}>Edit Profile</Text>
+
+            <View style={styles.actionButtons}>
+              <TouchableOpacity style={styles.editBtn} onPress={handleEditProfile}>
+                <Ionicons name="create-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.editBtnText}>Edit Profile</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.shareBtn}>
+              <TouchableOpacity style={styles.shareBtn} onPress={handleShareProfile}>
                 <Ionicons name="share-outline" size={16} color="#8B1A1A" />
                 <Text style={styles.shareBtnText}>Share</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Stats Row inside Profile Card */}
-            <View style={[styles.statsContainer, { marginTop: 24 }]}>
+            <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>12</Text>
+                <Text style={styles.statNumber}>{profileStats.projects}</Text>
                 <Text style={styles.statLabel}>Projects</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>8</Text>
+                <Text style={styles.statNumber}>{profileStats.collaborations}</Text>
                 <Text style={styles.statLabel}>Collaborations</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>25</Text>
+                <Text style={styles.statNumber}>{profileStats.events}</Text>
                 <Text style={styles.statLabel}>Events</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>156</Text>
+                <Text style={styles.statNumber}>{profileStats.connections}</Text>
                 <Text style={styles.statLabel}>Connections</Text>
               </View>
             </View>
 
             {/* Tab Navigation inside Profile Box */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.tabScrollView, { marginTop: 24 }]}>
+            <ScrollView 
+              ref={tabScrollRef}
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              style={[styles.tabScrollView, { marginTop: 24 }]}
+            >
               <View style={styles.tabNavigation}>
                 {['overview', 'projects', 'posts', 'events', 'achievements'].map((tab, index) => (
                   <TouchableOpacity
@@ -506,6 +657,13 @@ export default function ProfileScreen() {
               const index = Math.round(event.nativeEvent.contentOffset.x / width);
               const tabs = ['overview', 'projects', 'posts', 'events', 'achievements'];
               setActiveTab(tabs[index]);
+              
+              // Auto-scroll the tab navigation to keep active tab visible
+              if (tabScrollRef.current) {
+                const tabWidth = 100; // minWidth from styles
+                const scrollPosition = index * (tabWidth + 8); // tabWidth + marginHorizontal
+                tabScrollRef.current.scrollTo({ x: scrollPosition, animated: true });
+              }
             }}
           />
         </View>
@@ -526,18 +684,17 @@ export default function ProfileScreen() {
               Edit {photoType === 'cover' ? 'Cover Photo' : 'Profile Photo'}
             </Text>
             
-            <TouchableOpacity style={styles.modalOption}>
+            <TouchableOpacity style={styles.modalOption} onPress={() => handleImagePicker('camera')}>
               <Ionicons name="camera-outline" size={24} color="#8B1A1A" />
               <Text style={styles.modalOptionText}>Take Photo</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.modalOption}>
+            <TouchableOpacity style={styles.modalOption} onPress={() => handleImagePicker('gallery')}>
               <Ionicons name="image-outline" size={24} color="#8B1A1A" />
               <Text style={styles.modalOptionText}>Choose from Gallery</Text>
             </TouchableOpacity>
             
-            
-            <TouchableOpacity style={styles.modalOption}>
+            <TouchableOpacity style={styles.modalOption} onPress={handleRemovePhoto}>
               <Ionicons name="trash-outline" size={24} color="#EF4444" />
               <Text style={[styles.modalOptionText, { color: '#EF4444' }]}>Remove Photo</Text>
             </TouchableOpacity>
@@ -555,7 +712,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#fef2f2',
   },
   mainScrollView: {
     flex: 1,
@@ -595,7 +752,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#7f1d1d',
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
@@ -603,6 +760,8 @@ const styles = StyleSheet.create({
     marginTop: -60,
     marginHorizontal: 20,
     zIndex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
   },
   tabScrollView: {
     marginTop: 20,
@@ -621,11 +780,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginHorizontal: 4,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#fef2f2',
     minWidth: 100,
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
   },
   activeTabButton: {
-    backgroundColor: '#7f1d1d',
+    backgroundColor: '#991B1B',
   },
   tabButtonText: {
     fontSize: 12,
@@ -719,7 +880,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#7f1d1d',
+    backgroundColor: '#991B1B',
     borderRadius: 12,
     padding: 6,
   },
@@ -731,7 +892,7 @@ const styles = StyleSheet.create({
   },
   profileHandle: {
     fontSize: 16,
-    color: '#7f1d1d',
+    color: '#991B1B',
     marginBottom: 10,
   },
   locationContainer: {
@@ -741,7 +902,7 @@ const styles = StyleSheet.create({
   },
   profileLocation: {
     fontSize: 14,
-    color: '#7f1d1d',
+    color: '#991B1B',
     marginLeft: 5,
   },
   joinedContainer: {
@@ -751,7 +912,7 @@ const styles = StyleSheet.create({
   },
   joinedText: {
     fontSize: 14,
-    color: '#7f1d1d',
+    color: '#991B1B',
     marginLeft: 5,
   },
   bioText: {
@@ -765,8 +926,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 15,
   },
-  editProfileBtn: {
-    backgroundColor: '#7f1d1d',
+  messageBtn: {
+    backgroundColor: '#991B1B',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -774,7 +935,37 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 8,
   },
-  editProfileBtnText: {
+  messageBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  followBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#8B1A1A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+  },
+  followBtnText: {
+    color: '#991B1B',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  editBtn: {
+    backgroundColor: '#991B1B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+  },
+  editBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
@@ -791,7 +982,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   shareBtnText: {
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -811,7 +1002,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#8B1A1A',
+    color: '#991B1B',
     marginBottom: 4,
     textAlign: 'center',
   },
@@ -930,7 +1121,7 @@ const styles = StyleSheet.create({
   },
   eventDate: {
     fontSize: 14,
-    color: '#7f1d1d',
+    color: '#991B1B',
     marginBottom: 4,
   },
   eventAttendees: {
@@ -945,7 +1136,7 @@ const styles = StyleSheet.create({
   },
   roleText: {
     fontSize: 12,
-    color: '#7f1d1d',
+    color: '#991B1B',
     fontWeight: '500',
   },
   achievementsGrid: {
@@ -1001,7 +1192,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   skillChip: {
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -1021,7 +1212,7 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 14,
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontWeight: '600',
   },
   projectCard: {
@@ -1292,7 +1483,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 4,
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -1311,5 +1502,157 @@ const styles = StyleSheet.create({
     width: width,
     paddingHorizontal: 20,
     paddingBottom: 100,
+  },
+  // Modern project styles
+  projectsList: {
+    marginBottom: 20,
+  },
+  modernProjectCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  modernProjectHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  projectIconContainer: {
+    marginRight: 12,
+  },
+  projectIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  projectHeaderInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modernProjectTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    flex: 1,
+  },
+  modernStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  activeStatusBadge: {
+    backgroundColor: '#DCFCE7',
+  },
+  completedStatusBadge: {
+    backgroundColor: '#DBEAFE',
+  },
+  inProgressStatusBadge: {
+    backgroundColor: '#FEF3C7',
+  },
+  modernStatusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  modernActiveStatusText: {
+    color: '#16A34A',
+  },
+  modernCompletedStatusText: {
+    color: '#2563EB',
+  },
+  inProgressStatusText: {
+    color: '#D97706',
+  },
+  modernProjectDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  projectProgressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  progressBar: {
+    flex: 1,
+    height: 6,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 3,
+    marginRight: 12,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#991B1B',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#991B1B',
+    minWidth: 35,
+  },
+  modernProjectTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  modernProjectTag: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 26, 26, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  modernProjectTagText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  modernProjectMetrics: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  modernMetric: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modernMetricText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  modernSeeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 26, 26, 0.2)',
+    gap: 8,
+  },
+  modernSeeAllText: {
+    fontSize: 14,
+    color: '#991B1B',
+    fontWeight: '600',
   },
 });

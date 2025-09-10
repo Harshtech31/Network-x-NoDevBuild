@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
@@ -62,6 +63,28 @@ export default function PersonDetailScreen() {
     posts: 45,
     followers: 1250,
     following: 890
+  };
+
+  const navigateToFollowers = () => {
+    router.push({
+      pathname: '/FollowersScreen',
+      params: {
+        type: 'followers',
+        userName: person.name,
+        count: person.followers.toString()
+      }
+    });
+  };
+
+  const navigateToFollowing = () => {
+    router.push({
+      pathname: '/FollowersScreen',
+      params: {
+        type: 'following',
+        userName: person.name,
+        count: person.following.toString()
+      }
+    });
   };
 
   return (
@@ -121,14 +144,14 @@ export default function PersonDetailScreen() {
             <Text style={styles.statNumber}>{person.posts}</Text>
             <Text style={styles.statLabel}>Posts</Text>
           </View>
-          <View style={styles.statItem}>
+          <TouchableOpacity style={styles.statItem} onPress={navigateToFollowers}>
             <Text style={styles.statNumber}>{person.followers}</Text>
             <Text style={styles.statLabel}>Followers</Text>
-          </View>
-          <View style={styles.statItem}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statItem} onPress={navigateToFollowing}>
             <Text style={styles.statNumber}>{person.following}</Text>
             <Text style={styles.statLabel}>Following</Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -221,7 +244,7 @@ const styles = StyleSheet.create({
   },
   coverPhoto: {
     height: 120,
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     position: 'relative',
   },
   profileImageContainer: {
@@ -261,7 +284,7 @@ const styles = StyleSheet.create({
   },
   connections: {
     fontSize: 14,
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontWeight: '500',
   },
   actionButtons: {
@@ -272,7 +295,7 @@ const styles = StyleSheet.create({
   },
   connectButton: {
     flex: 1,
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -298,7 +321,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   messageButtonText: {
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -363,7 +386,7 @@ const styles = StyleSheet.create({
   },
   expCompany: {
     fontSize: 14,
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontWeight: '500',
     marginBottom: 8,
   },
@@ -386,7 +409,7 @@ const styles = StyleSheet.create({
   },
   eduSchool: {
     fontSize: 14,
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontWeight: '500',
     marginBottom: 2,
   },

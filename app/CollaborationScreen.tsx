@@ -256,16 +256,15 @@ export default function CollaborationScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#8B1A1A" />
+      <StatusBar barStyle="dark-content" backgroundColor="#fef2f2" translucent={true} />
       
       {/* Header */}
-      <LinearGradient colors={['#8B1A1A', '#A52A2A']} style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Find Collaborators</Text>
+        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+          <Ionicons name="close" size={24} color="#991B1B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Find Your Perfect Collaborator</Text>
-        <View style={styles.headerRight} />
-      </LinearGradient>
+      </View>
 
       {/* Stats Bar */}
       <View style={styles.statsBar}>
@@ -273,7 +272,7 @@ export default function CollaborationScreen() {
           style={styles.statButton}
           onPress={() => setShowLikedModal(true)}
         >
-          <Ionicons name="heart" size={20} color="#8B1A1A" />
+          <Ionicons name="heart" size={20} color="#991B1B" />
           <Text style={styles.statText}>Liked ({likedEvents.length})</Text>
         </TouchableOpacity>
         
@@ -290,7 +289,7 @@ export default function CollaborationScreen() {
       <View style={styles.cardsContainer}>
         {currentIndex >= events.length ? (
           <View style={styles.noMoreCards}>
-            <Ionicons name="checkmark-circle" size={80} color="#8B1A1A" />
+            <Ionicons name="checkmark-circle" size={80} color="#7f1d1d" />
             <Text style={styles.noMoreText}>No more collaborations!</Text>
             <Text style={styles.noMoreSubtext}>Check back later for new opportunities</Text>
           </View>
@@ -313,7 +312,7 @@ export default function CollaborationScreen() {
             style={[styles.actionButton, styles.likeButton]}
             onPress={handleLike}
           >
-            <Ionicons name="heart" size={30} color="#8B1A1A" />
+            <Ionicons name="heart" size={30} color="#7f1d1d" />
           </TouchableOpacity>
         </View>
       )}
@@ -468,62 +467,70 @@ export default function CollaborationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 20,
-    paddingTop: 40,
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    padding: 5,
+    paddingTop: 50,
+    paddingBottom: 16,
+    backgroundColor: '#fef2f2'
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'white',
-    flex: 1,
-    textAlign: 'center',
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#991B1B',
+    letterSpacing: -0.5
   },
-  headerRight: {
-    width: 34,
+  closeBtn: {
+    padding: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    shadowColor: '#991B1B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
   },
   statsBar: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
+    paddingVertical: 16,
+    backgroundColor: '#fef2f2',
     justifyContent: 'space-around',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F3F4F6',
   },
   statButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'transparent',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   statText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
   },
   cardsContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: '#FFFFFF',
   },
   card: {
     position: 'absolute',
-    width: width - 40,
-    height: height * 0.7,
+    width: width - 60,
+    height: height * 0.55,
     borderRadius: 20,
     backgroundColor: 'white',
     shadowColor: '#000',
@@ -654,11 +661,13 @@ const styles = StyleSheet.create({
   likeButton: {
     backgroundColor: 'white',
     borderWidth: 2,
-    borderColor: '#8B1A1A',
+    borderColor: '#7f1d1d',
   },
   noMoreCards: {
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
   },
   noMoreText: {
     fontSize: 24,
@@ -673,7 +682,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -748,32 +757,37 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   modalSkillChip: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#991B1B',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 88, 12, 0.2)',
   },
   modalSkillText: {
     fontSize: 12,
-    color: '#374151',
+    color: '#9a3412',
     fontWeight: '500',
   },
   listContainer: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#FFFFFF',
   },
   listItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+    shadowColor: '#7f1d1d',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   listImage: {
     width: 60,

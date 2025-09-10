@@ -242,7 +242,7 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#fef2f2',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -256,12 +256,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 32,
-    shadowColor: '#000',
+    shadowColor: '#7f1d1d',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
     marginVertical: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 26, 26, 0.1)',
   },
   header: {
     alignItems: 'center',
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#991B1B',
     marginBottom: 8,
   },
   subtitle: {
@@ -292,24 +294,35 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: 'rgba(127, 29, 29, 0.2)',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
     color: '#1F2937',
     backgroundColor: '#FFFFFF',
+    shadowColor: '#7f1d1d',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: 'rgba(127, 29, 29, 0.2)',
     borderRadius: 8,
     backgroundColor: '#FFFFFF',
+    shadowColor: '#7f1d1d',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   passwordContainerError: {
-    borderColor: '#EF4444',
+    borderColor: '#DC2626',
+    shadowColor: '#DC2626',
   },
   passwordInput: {
     flex: 1,
@@ -323,12 +336,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   errorText: {
-    color: '#EF4444',
+    color: '#DC2626',
     fontSize: 12,
     marginTop: 4,
   },
   signUpButton: {
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
@@ -336,7 +349,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   signUpButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: 'rgba(139, 26, 26, 0.5)',
   },
   signUpButtonText: {
     color: '#FFFFFF',
@@ -353,7 +366,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginLink: {
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontSize: 14,
     fontWeight: '600',
   },

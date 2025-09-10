@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   FlatList,
   Image,
@@ -10,186 +10,216 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from 'react-native';
+import { Calendar, DateData } from 'react-native-calendars';
 
-// Type definition for an event
+// Data & Types
 type Event = {
-  id: string;
+  id: number;
   title: string;
-  organizer: string;
-  category: string;
-  image: string;
-  featured: boolean;
+  type: string;
+  date: string;
+  time: string;
+  location: string;
+  shortDesc: string;
+  bannerUrl: string;
+  tags: string[];
 };
 
-// Mock data for events
-const EVENTS_DATA: Event[] = [
-  {
-    id: '1',
-    title: 'AI & Machine Learning Workshop',
-    organizer: 'Tech Society',
-    category: 'Technology',
-    image: 'https://via.placeholder.com/300x150?text=AI+Workshop',
-    featured: true,
-  },
-  {
-    id: '2',
-    title: 'Startup Pitch Night',
-    organizer: 'Business Club',
-    category: 'Business',
-    image: 'https://via.placeholder.com/300x150?text=Pitch+Night',
-    featured: true,
-  },
-  {
-    id: '3',
-    title: 'Varsity Soccer Match',
-    organizer: 'Athletics Department',
-    category: 'Sports',
-    image: 'https://via.placeholder.com/300x150?text=Soccer+Match',
-    featured: false,
-  },
-  {
-    id: '4',
-    title: 'Digital Art Exhibition',
-    organizer: 'Arts Council',
-    category: 'Arts',
-    image: 'https://via.placeholder.com/300x150?text=Art+Exhibition',
-    featured: false,
-  },
+const sampleEvents: Event[] = [
+  { id: 1, title: 'AI Club Meetup', type: 'Event', date: '2025-09-10', time: '18:00', location: 'Innovation Hub', shortDesc: 'Build your first agent; pizza included.', bannerUrl: 'https://source.unsplash.com/400x200/?ai,workshop', tags: ['AI', 'Workshop'] },
+  { id: 2, title: 'Design Jam', type: 'Event', date: '2025-09-10', time: '15:00', location: 'Studio 2', shortDesc: 'Rapid prototyping sprint.', bannerUrl: 'https://source.unsplash.com/400x200/?design,sprint', tags: ['Design'] },
+  { id: 3, title: 'Robotics Demo Day', type: 'Event', date: '2025-09-12', time: '11:00', location: 'Main Hall', shortDesc: 'Showcase bots & sensors.', bannerUrl: 'https://source.unsplash.com/400x200/?robotics', tags: ['Robotics', 'Demo'] },
+  { id: 4, title: 'Career Fair', type: 'Event', date: '2025-09-15', time: '10:00', location: 'Expo Center', shortDesc: 'Meet recruiters, polish resumes.', bannerUrl: 'https://source.unsplash.com/400x200/?career,fair', tags: ['Career'] },
 ];
 
-// Grid View Card
-const EventCard = ({ item }: { item: Event }) => (
-  <View style={styles.eventCard}>
-    <Image source={{ uri: item.image }} style={styles.eventImage} />
-    {item.featured && <View style={styles.featuredBadge}><Text style={styles.featuredText}>Featured</Text></View>}
-    <View style={styles.eventContent}>
-      <Text style={styles.eventCategory}>{item.category}</Text>
-      <Text style={styles.eventTitle}>{item.title}</Text>
-      <Text style={styles.eventOrganizer}>{item.organizer}</Text>
-      <View style={styles.eventActions}>
-        <TouchableOpacity><Ionicons name="heart-outline" size={24} color="#6B7280" /></TouchableOpacity>
-        <TouchableOpacity><Ionicons name="share-social-outline" size={24} color="#6B7280" /></TouchableOpacity>
-      </View>
+const EventCard = ({ item, isListView }: { item: Event, isListView?: boolean }) => (
+  <View style={[styles.card, isListView && styles.cardListView]}>
+    <Image source={{ uri: item.bannerUrl }} style={[styles.cardMedia, isListView && styles.cardMediaListView]} />
+    <View style={styles.cardContent}>
+      <View style={styles.chip}><Text style={styles.chipText}>{item.type}</Text></View>
+      <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+      <Text style={styles.metaText}>📍 {item.location}</Text>
+      <Text style={styles.metaText}>{item.date} • {item.time}</Text>
     </View>
   </View>
 );
 
-// List View Item
-const EventListItem = ({ item }: { item: Event }) => (
-  <TouchableOpacity style={styles.listItem}>
-    <Image source={{ uri: item.image }} style={styles.listImage} />
-    <View style={styles.listContent}>
-      <Text style={styles.eventTitle}>{item.title}</Text>
-      <Text style={styles.eventOrganizer}>{item.organizer}</Text>
-      <Text style={styles.eventCategory}>{item.category}</Text>
-    </View>
-    <View style={styles.listActions}>
-        <TouchableOpacity><Ionicons name="heart-outline" size={24} color="#6B7280" /></TouchableOpacity>
-    </View>
-  </TouchableOpacity>
-);
-
 export default function CalendarScreen() {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [viewMode, setViewMode] = useState('Grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [events, setEvents] = useState(sampleEvents);
 
-    const renderContent = () => {
-    if (viewMode === 'Grid') {
-      return (
-        <FlatList
-          key="grid" // Unique key for grid mode
-          data={EVENTS_DATA}
-          renderItem={({ item }) => <EventCard item={item} />}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          contentContainerStyle={styles.gridContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      );
+  // Simulate initial data loading
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setEvents(sampleEvents);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to load events');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, []);
+
+  // Handle pull-to-refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Simulate refresh API delay
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setEvents(sampleEvents);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to refresh events');
+    } finally {
+      setIsRefreshing(false);
     }
-    if (viewMode === 'List') {
-      return (
-        <FlatList
-          key="list" // Unique key for list mode
-          data={EVENTS_DATA}
-          renderItem={({ item }) => <EventListItem item={item} />}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      );
-    }
-    // Placeholder for Calendar view
-    return <View style={styles.placeholderView}><Text>Calendar view coming soon!</Text></View>;
   };
+
+  const markedDates = useMemo(() => {
+    const marks: { [key: string]: any } = {};
+    sampleEvents.forEach(event => {
+      marks[event.date] = { marked: true, dotColor: '#991B1B' };
+    });
+    marks[selectedDate] = { ...marks[selectedDate], selected: true, selectedColor: '#991B1B', selectedTextColor: '#FFFFFF', activeOpacity: 0.8 };
+    return marks;
+  }, [selectedDate]);
+
+  const filteredBySearch = useMemo(() => {
+    if (!searchQuery) return events;
+    const q = searchQuery.trim().toLowerCase();
+    return events.filter(event => 
+      event.title.toLowerCase().includes(q) || event.tags.some(tag => tag.toLowerCase().includes(q))
+    );
+  }, [searchQuery, events]);
+
+  const eventsOnSelectedDate = useMemo(() => 
+    filteredBySearch.filter(event => event.date === selectedDate)
+  , [filteredBySearch, selectedDate]);
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Campus Events</Text>
-        <TouchableOpacity style={styles.notificationButton}>
-          <Ionicons name="notifications-outline" size={24} color="#111111" />
-          <View style={styles.notificationBadge}><Text style={styles.notificationCount}>3</Text></View>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.searchAndFilters}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={20} color="#6B7280" />
-          <TextInput placeholder="Search events, clubs, or tags..." style={styles.searchInput} />
+      <View style={styles.header}><Text style={styles.headerTitle}>Events & Calendar</Text></View>
+      
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#7f1d1d" />
+          <Text style={styles.loadingText}>Loading events...</Text>
         </View>
-        <View style={styles.filterRow}>
-          <TouchableOpacity style={styles.categoryDropdown}><Text style={styles.categoryText}>Category: All</Text><Ionicons name="chevron-down" size={16} color="#FFFFFF" /></TouchableOpacity>
-          <View style={styles.viewToggle}>
-            {['Grid', 'List', 'Calendar'].map(mode => (
-              <TouchableOpacity key={mode} style={[styles.toggleButton, viewMode === mode && styles.activeToggleButton]} onPress={() => setViewMode(mode)}>
-                <Text style={[styles.toggleText, viewMode === mode && styles.activeToggleButton]}>{mode}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
+      ) : (
+        <FlatList
+          ListHeaderComponent={
+            <>
+              <View style={styles.searchBarContainer}>
+                <View style={styles.searchBar}>
+                  <Ionicons name="search" size={20} color="#9CA3AF" />
+                  <TextInput 
+                    placeholder="Search events or tags..." 
+                    style={styles.searchInput}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+                </View>
+              </View>
 
-      <Text style={styles.sectionTitle}>Featured Events</Text>
-      {renderContent()}
+              <Calendar
+                onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
+                markedDates={markedDates}
+                theme={{
+                  calendarBackground: '#FFFFFF',
+                  arrowColor: '#991B1B',
+                  todayTextColor: '#991B1B',
+                  textSectionTitleColor: '#991B1B',
+                  selectedDayBackgroundColor: '#991B1B',
+                  selectedDayTextColor: '#FFFFFF',
+                }}
+              />
+
+              <View style={styles.dayEventsPanel}>
+              <Text style={styles.panelTitle}>Events on {selectedDate}</Text>
+              {eventsOnSelectedDate.length > 0 ? (
+                eventsOnSelectedDate.map(event => <EventCard key={event.id} item={event} isListView={true} />)
+              ) : (
+                <View style={styles.emptyStateContainer}><Text style={styles.emptyStateText}>No events for this date.</Text></View>
+              )}
+            </View>
+
+            <View style={styles.listHeaderContainer}>
+              <Text style={styles.panelTitle}>All Events</Text>
+              <View style={styles.viewToggle}>
+                <TouchableOpacity onPress={() => setViewMode('Grid')} style={[styles.toggleButton, viewMode === 'Grid' && styles.toggleButtonActive]}><Ionicons name="grid" size={20} color={viewMode === 'Grid' ? '#991B1B' : '#6B7280'} /></TouchableOpacity>
+                <TouchableOpacity onPress={() => setViewMode('List')} style={[styles.toggleButton, viewMode === 'List' && styles.toggleButtonActive]}><Ionicons name="list" size={20} color={viewMode === 'List' ? '#991B1B' : '#6B7280'} /></TouchableOpacity>
+              </View>
+            </View>
+          </>
+        }
+        data={filteredBySearch}
+        key={viewMode}
+        numColumns={viewMode === 'Grid' ? 2 : 1}
+        renderItem={({ item }) => <EventCard item={item} isListView={viewMode === 'List'} />}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.eventsCollection}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={['#7f1d1d']}
+            tintColor="#7f1d1d"
+          />
+        }
+      />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF7F0' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#111111' },
-  notificationButton: { position: 'relative' },
-  notificationBadge: { position: 'absolute', right: -5, top: -5, backgroundColor: '#8B1A1A', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
-  notificationCount: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' },
-  searchAndFilters: { paddingHorizontal: 16, marginBottom: 16 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 4 },
-  searchInput: { flex: 1, marginLeft: 12, fontSize: 16 },
-  filterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  categoryDropdown: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#8B1A1A', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  categoryText: { color: '#FFFFFF', fontWeight: '600', marginRight: 8 },
-  viewToggle: { flexDirection: 'row', backgroundColor: '#E5E7EB', borderRadius: 20 },
-  toggleButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  activeToggleButton: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  toggleText: { fontWeight: '600', color: '#6B7280' },
-  activeToggleText: { color: '#8B1A1A' },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', paddingHorizontal: 16, marginBottom: 12 },
-  gridContainer: { paddingHorizontal: 12, paddingBottom: 100 },
-  eventCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 16, margin: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 4 },
-  eventImage: { width: '100%', height: 100, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
-  featuredBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(139, 26, 26, 0.9)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  featuredText: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' },
-  eventContent: { padding: 12 },
-  eventCategory: { fontSize: 12, color: '#8B1A1A', fontWeight: '600', marginBottom: 4 },
-  eventTitle: { fontSize: 16, fontWeight: 'bold', color: '#111111', marginBottom: 4 },
-  eventOrganizer: { fontSize: 14, color: '#6B7280', marginBottom: 12 },
-  eventActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  placeholderView: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContainer: { paddingHorizontal: 16, paddingBottom: 100 },
-  listItem: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12, marginBottom: 12, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
-  listImage: { width: 80, height: 80, borderRadius: 12, marginRight: 12 },
-  listContent: { flex: 1 },
-  listActions: { marginLeft: 12 },
+  container: { flex: 1, backgroundColor: '#FEF2F2' },
+  header: { height: 44, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  headerTitle: { fontSize: 18, fontWeight: '600' },
+  searchBarContainer: { padding: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 12, paddingHorizontal: 12, height: 44 },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 16 },
+  dayEventsPanel: { padding: 16 },
+  panelTitle: { fontSize: 20, fontWeight: 'bold' },
+  emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
+  emptyStateText: { color: '#6B7280', fontSize: 16 },
+  listHeaderContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  viewToggle: { flexDirection: 'row', backgroundColor: '#E5E7EB', borderRadius: 12 },
+  toggleButton: { padding: 8, borderRadius: 10 },
+  toggleButtonActive: { backgroundColor: '#FFFFFF' },
+  eventsCollection: { paddingHorizontal: 12 },
+  card: { flex: 1, margin: 6, backgroundColor: '#FFFFFF', borderRadius: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, overflow: 'hidden' },
+  cardListView: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 4, marginBottom: 8 },
+  cardMedia: { width: '100%', aspectRatio: 16 / 9 },
+  cardMediaListView: { width: 80, height: 80, aspectRatio: 1, borderRadius: 12 },
+  cardContent: { flex: 1, padding: 12 },
+  chip: { alignSelf: 'flex-start', backgroundColor: '#FEF2F2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 6 },
+  chipText: { color: '#991B1B', fontSize: 12, fontWeight: '600' },
+  cardTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+  metaText: { color: '#6B7280', fontSize: 12, marginBottom: 2 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
 });

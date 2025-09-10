@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,18 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Animated,
+  StatusBar,
+  Modal,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
+  Clipboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ShareService } from '../utils/ShareService';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +26,23 @@ export default function ProjectDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isJoined, setIsJoined] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [modalType, setModalType] = useState(''); // 'contributors', 'updates', 'resources'
+  const [memberCount, setMemberCount] = useState(4);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   // Mock project data - in real app this would come from API based on params.id
   const project = {
@@ -168,7 +194,7 @@ export default function ProjectDetailScreen() {
           <View key={index} style={styles.roleCard}>
             <Text style={styles.roleTitle}>{role.title}</Text>
             <Text style={styles.roleDescription}>{role.description}</Text>
-            <TouchableOpacity style={styles.applyButton}>
+            <TouchableOpacity style={styles.applyButton} onPress={() => handleApplyPosition(role.title, project.title)}>
               <Text style={styles.applyButtonText}>Apply</Text>
             </TouchableOpacity>
           </View>
@@ -211,179 +237,495 @@ export default function ProjectDetailScreen() {
     </View>
   );
 
-  return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Project Details</Text>
-        <TouchableOpacity style={styles.shareButton}>
-          <Ionicons name="share-outline" size={24} color="#1F2937" />
-        </TouchableOpacity>
-      </View>
+  const handleFollow = () => {
+    setIsFollowing(!isFollowing);
+    Alert.alert(
+      isFollowing ? 'Unfollowed' : 'Following',
+      isFollowing ? 'You are no longer following this project.' : 'You are now following this project and will receive updates.',
+      [{ text: 'OK' }]
+    );
+  };
 
-      {/* Project Header */}
-      <View style={styles.projectHeader}>
-        <View style={styles.titleRow}>
-          <Text style={styles.projectTitle}>{project.title}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(project.status).bg }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(project.status).text }]}>
-              {project.status}
-            </Text>
+  const handleJoinProject = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      if (isJoined) {
+        setIsJoined(false);
+        setMemberCount(prev => prev - 1);
+        Alert.alert(
+          'Left Project',
+          'You have successfully left this project. You will no longer receive project updates or have access to team resources.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        setIsJoined(true);
+        setMemberCount(prev => prev + 1);
+        Alert.alert(
+          'Joined Project!',
+          'Welcome to the team! You now have access to project resources and will receive updates. Check your email for team collaboration details.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'Failed to join/leave project. Please check your connection and try again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Retry', onPress: handleJoinProject }
+        ]
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // Simulate refresh
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      // In real app, refetch project data here
+    } catch (error) {
+      Alert.alert('Error', 'Failed to refresh project data.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      const shareSuccess = await ShareService.shareProject({
+        id: project.id,
+        title: project.title,
+        content: project.description,
+        user: { name: project.leader.name }
+      });
+      
+      if (shareSuccess) {
+        console.log('Project shared successfully');
+      } else {
+        // Fallback to custom modal if native share fails
+        setShowShareModal(true);
+      }
+    } catch (error) {
+      console.error('Error sharing project:', error);
+      // Fallback to custom modal
+      setShowShareModal(true);
+    }
+  };
+
+  const copyProjectLink = () => {
+    const projectLink = `https://yourapp.com/project/${project.id}`;
+    Clipboard.setString(projectLink);
+    Alert.alert("Copied!", "Project link copied to clipboard");
+    setShowShareModal(false);
+  };
+
+  const handleApplyPosition = (position: string, projectTitle: string) => {
+    Alert.alert(
+      'Application Sent',
+      `Your application for "${position}" position in "${projectTitle}" has been sent to the project lead. You will receive a notification once reviewed.`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+
+      <Animated.ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: fadeAnim } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <LinearGradient
+            colors={['#8B1A1A', '#DC2626', '#EF4444']}
+            style={styles.heroGradient}
+          />
+          
+          {/* Floating Header Buttons */}
+          <View style={styles.floatingHeader}>
+            <TouchableOpacity 
+              style={styles.floatingButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.floatingButton} onPress={handleShare}>
+              <Ionicons name="share-outline" size={24} color="#1F2937" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Project Info Overlay */}
+          <Animated.View style={[styles.projectInfoOverlay, { opacity: fadeAnim }]}>
+            <View style={styles.statusBadgeContainer}>
+              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(project.status).bg }]}>
+                <Text style={[styles.statusText, { color: getStatusColor(project.status).text }]}>
+                  {project.status}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.heroProjectTitle}>{project.title}</Text>
+            <Text style={styles.heroProjectDescription}>{project.description}</Text>
+          </Animated.View>
+        </View>
+
+        {/* Stats Card */}
+        <View style={styles.modernStatsCard}>
+          <View style={styles.modernStatItem}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="people-outline" size={20} color="#7f1d1d" />
+            </View>
+            <Text style={styles.modernStatNumber}>{project.teamSize}</Text>
+            <Text style={styles.modernStatLabel}>Team Size</Text>
+          </View>
+          <View style={styles.modernStatItem}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="time-outline" size={20} color="#7f1d1d" />
+            </View>
+            <Text style={styles.modernStatNumber}>{project.duration}</Text>
+            <Text style={styles.modernStatLabel}>Duration</Text>
+          </View>
+          <View style={styles.modernStatItem}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="calendar-outline" size={20} color="#7f1d1d" />
+            </View>
+            <Text style={styles.modernStatNumber}>{project.startDate}</Text>
+            <Text style={styles.modernStatLabel}>Start Date</Text>
           </View>
         </View>
-        <Text style={styles.projectDescription}>{project.description}</Text>
-        
-        <TouchableOpacity style={styles.joinButton}>
-          <Ionicons name="person-add" size={18} color="#FFFFFF" />
-          <Text style={styles.joinButtonText}>Join Project</Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        {['overview', 'team', 'progress'].map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => setActiveTab(tab)}
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity 
+            style={[styles.secondaryButton, { flex: 1 }]}
+            onPress={handleFollow}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            <Ionicons 
+              name={isFollowing ? "heart" : "heart-outline"} 
+              size={20} 
+              color={isFollowing ? "#EF4444" : "#7f1d1d"} 
+            />
+            <Text style={styles.secondaryButtonText}>
+              {isFollowing ? "Following" : "Follow"}
             </Text>
           </TouchableOpacity>
-        ))}
-      </View>
+          
+          <TouchableOpacity 
+            style={[styles.primaryButton, { flex: 2 }]}
+            onPress={handleJoinProject}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons 
+                  name={isJoined ? "checkmark-circle" : "add-circle"} 
+                  size={20} 
+                  color="#FFFFFF" 
+                />
+                <Text style={styles.primaryButtonText}>
+                  {isJoined ? "Leave Project" : "Join Project"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
 
-      {/* Tab Content */}
-      <View style={styles.tabContent}>
-        {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'team' && renderTeam()}
-        {activeTab === 'progress' && renderProgress()}
-      </View>
-    </ScrollView>
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          {['overview', 'team', 'progress'].map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.activeTab]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Tab Content */}
+        <View style={styles.tabContent}>
+          {activeTab === 'overview' && renderOverview()}
+          {activeTab === 'team' && renderTeam()}
+          {activeTab === 'progress' && renderProgress()}
+        </View>
+      </Animated.ScrollView>
+
+      {/* Share Modal */}
+      <Modal
+        visible={showShareModal}
+        transparent={true}
+        onRequestClose={() => setShowShareModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.shareModal}>
+            <Text style={styles.shareModalTitle}>Share Project</Text>
+            <View style={styles.linkContainer}>
+              <Text style={styles.shareLink}>https://yourapp.com/project/{project.id}</Text>
+            </View>
+            <TouchableOpacity style={styles.copyButton} onPress={copyProjectLink}>
+              <Ionicons name="copy-outline" size={16} color="#7f1d1d" />
+              <Text style={styles.copyButtonText}>Copy Link</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.closeModalButton} onPress={() => setShowShareModal(false)}>
+              <Text style={styles.closeModalText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#fef2f2',
   },
-  header: {
+  animatedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 90,
+    backgroundColor: '#991B1B',
     flexDirection: 'row',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: '#FFFFFF',
+    paddingBottom: 16,
+    paddingTop: 44,
+    zIndex: 1000,
   },
-  backButton: {
+  headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
   },
-  headerTitle: {
+  animatedHeaderTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    flex: 1,
   },
-  shareButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
+  scrollView: {
+    flex: 1,
   },
-  projectHeader: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    marginBottom: 12,
+  heroSection: {
+    height: 300,
+    backgroundColor: '#991B1B',
+    justifyContent: 'flex-end',
+    position: 'relative',
   },
-  titleRow: {
+  heroGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 150,
+  },
+  floatingHeader: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    zIndex: 10,
   },
-  projectTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
-    flex: 1,
-    marginRight: 12,
+  floatingButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
   },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  fixedShareButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 1000,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
+  shareButtonFixed: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
   },
-  projectDescription: {
+  projectInfoOverlay: {
+    padding: 20,
+    paddingBottom: 30,
+  },
+  statusBadgeContainer: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  heroProjectTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  heroProjectDescription: {
     fontSize: 16,
-    color: '#6B7280',
+    color: 'rgba(255, 255, 255, 0.9)',
     lineHeight: 24,
-    marginBottom: 20,
   },
-  joinButton: {
-    backgroundColor: '#8B1A1A',
+  statsCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20,
+    marginTop: -20,
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+    zIndex: 10,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#E5E7EB',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    gap: 12,
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: '#991B1B',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 24,
     gap: 8,
   },
-  joinButtonText: {
+  primaryButtonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 2,
+    borderColor: '#7f1d1d',
+    marginRight: 12,
+  },
+  secondaryButtonText: {
+    color: '#991B1B',
     fontSize: 16,
     fontWeight: '600',
   },
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    marginBottom: 12,
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
   },
   tab: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
   },
   tabText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: '#6B7280',
   },
   activeTabText: {
-    color: '#8B1A1A',
-    fontWeight: '600',
+    color: '#FFFFFF',
   },
   tabContent: {
     flex: 1,
+    padding: 20,
   },
   section: {
     backgroundColor: '#FFFFFF',
     padding: 20,
     marginBottom: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
   },
   sectionTitle: {
     fontSize: 18,
@@ -466,7 +808,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(127, 29, 29, 0.1)',
   },
   roleTitle: {
     fontSize: 16,
@@ -534,5 +876,121 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
     lineHeight: 20,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareModal: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    marginHorizontal: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  shareModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 16,
+  },
+  linkContainer: {
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+  },
+  shareLink: {
+    fontSize: 14,
+    color: '#374151',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#7f1d1d',
+  },
+  copyButtonText: {
+    color: '#991B1B',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  closeModalButton: {
+    backgroundColor: '#991B1B',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  closeModalText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modernStatsCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+    shadowColor: '#7f1d1d',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  modernStatItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fef2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modernStatNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  modernStatLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });

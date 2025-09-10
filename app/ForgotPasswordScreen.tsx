@@ -73,7 +73,7 @@ export default function ForgotPasswordScreen() {
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.iconContainer}>
-                <Ionicons name="lock-closed" size={48} color="#8B1A1A" />
+                <Ionicons name="lock-closed" size={48} color="#991B1B" />
               </View>
               <Text style={styles.title}>Reset Password</Text>
               <Text style={styles.subtitle}>
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   resetButton: {
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backToLoginText: {
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontSize: 14,
     fontWeight: '600',
   },

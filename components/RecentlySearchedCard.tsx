@@ -80,7 +80,7 @@ const RecentlySearchedCard: React.FC<RecentlySearchedCardProps> = ({ person }) =
           <Text style={styles.messageButtonText}>Message</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.connectButton} accessibilityLabel="Connect">
-          <Ionicons name="person-add-outline" size={16} color="#8B1A1A" />
+          <Ionicons name="person-add-outline" size={16} color="#991B1B" />
           <Text style={styles.connectButtonText}>Connect</Text>
         </TouchableOpacity>
       </View>
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   },
   handle: {
     fontSize: 14,
-    color: '#8B1A1A',
+    color: '#991B1B',
     marginBottom: 4,
   },
   metaRow: {
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   messageButton: {
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#991B1B',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   connectButton: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#8B1A1A',
+    borderColor: '#991B1B',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   connectButtonText: {
-    color: '#8B1A1A',
+    color: '#991B1B',
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 6,
