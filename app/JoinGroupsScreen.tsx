@@ -428,6 +428,18 @@ export default function JoinGroupsScreen() {
         </View>
       </ScrollView>
 
+      {/* Create Group Button */}
+      <View style={styles.createGroupContainer}>
+        <TouchableOpacity 
+          style={styles.createGroupButton}
+          onPress={() => router.push('/CreateGroupsScreen')}
+        >
+          <View style={styles.createGroupIconContainer}>
+            <Ionicons name="add" size={28} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
       {/* Join Group Modal */}
       <Modal
         visible={showJoinModal}
@@ -854,5 +866,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
     minHeight: 120,
+  },
+  createGroupContainer: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    zIndex: 1000,
+  },
+  createGroupButton: {
+    backgroundColor: '#991B1B',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#991B1B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  createGroupIconContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

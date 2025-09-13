@@ -87,7 +87,9 @@ export class MemoryManager {
   static cacheImage(key: string, uri: string): void {
     if (this.imageCache.size >= this.maxCacheSize) {
       const firstKey = this.imageCache.keys().next().value;
-      this.imageCache.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.imageCache.delete(firstKey);
+      }
     }
     this.imageCache.set(key, uri);
   }
@@ -209,7 +211,7 @@ import React from 'react';
 // Bundle size optimization utilities
 export const BundleOptimizer = {
   // Lazy import utilities
-  lazyImport: <T>(importFn: () => Promise<{ default: T }>) => {
+  lazyImport: <T extends React.ComponentType<any>>(importFn: () => Promise<{ default: T }>) => {
     return React.lazy(importFn);
   },
 

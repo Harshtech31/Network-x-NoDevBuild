@@ -261,9 +261,18 @@ export default function CollaborationScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Find Collaborators</Text>
-        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-          <Ionicons name="close" size={24} color="#991B1B" />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.createCollabButton}
+            onPress={() => router.push('/CreateCollaborationScreen')}
+          >
+            <Ionicons name="add" size={16} color="#FFFFFF" />
+            <Text style={styles.createCollabText}>New</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+            <Ionicons name="close" size={24} color="#991B1B" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Stats Bar */}
@@ -298,7 +307,7 @@ export default function CollaborationScreen() {
         )}
       </View>
 
-      {/* Action Buttons */}
+      {/* Action Buttons - moved down with cards */}
       {currentIndex < events.length && (
         <View style={styles.actionButtons}>
           <TouchableOpacity 
@@ -478,6 +487,11 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     backgroundColor: '#fef2f2'
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -638,8 +652,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 40,
     paddingVertical: 20,
-    paddingBottom: 30,
+    paddingBottom: 40,
     paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
   },
   actionButton: {
     width: 60,
@@ -813,5 +828,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     lineHeight: 16,
+  },
+  createCollabButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#991B1B',
+    borderRadius: 16,
+    shadowColor: '#991B1B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  createCollabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

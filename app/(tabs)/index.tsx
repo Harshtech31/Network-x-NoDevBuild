@@ -1,27 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
+  Image,
   TouchableOpacity,
   ScrollView,
-  Image,
-  RefreshControl,
   SafeAreaView,
   StatusBar,
-  FlatList,
-  Modal,
-  Alert,
+  StyleSheet,
   Animated,
+  PanResponder,
   Dimensions,
-  ActivityIndicator,
+  Modal,
   TextInput,
+  FlatList,
+  Alert,
+  Easing,
+  ActivityIndicator,
+  RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { ShareService } from '../../utils/ShareService';
@@ -67,7 +71,9 @@ const QUICK_ACTIONS: QuickAction[] = [
   { id: '1', title: 'Find Collaborators', icon: 'people', color: '#991B1B', route: '/CollaborationScreen' },
   { id: '2', title: 'Create Project', icon: 'add-circle', color: '#ea580c', route: '/CreateScreen' },
   { id: '3', title: 'Join Events', icon: 'calendar', color: '#991B1B', route: '/EventsScreen' },
-  { id: '4', title: 'Messages', icon: 'chatbubble-ellipses', color: '#ea580c', route: '/MessagesScreen' },
+  { id: '4', title: 'Messages', icon: 'chatbubble-ellipses', color: '#ea580c', route: '/messages' },
+  // TODO: Re-enable for future group features
+  // { id: '5', title: 'Create Group', icon: 'people-circle', color: '#ea580c', route: '/CreateGroupsScreen' },
 ];
 
 const STORIES_DATA: StoryItem[] = [
@@ -285,41 +291,199 @@ const AnimatedButton = ({ children, onPress, style }: { children: React.ReactNod
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  const [showSideMenu, setShowSideMenu] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('All');
-  const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [postInteractions, setPostInteractions] = useState<{[key: string]: {liked: boolean, likes: number, comments: number, shares: number, saved: boolean}}>({});
+  const [showMessagesScreen, setShowMessagesScreen] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [messagesIsNavigating, setMessagesIsNavigating] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showSideMenu, setShowSideMenu] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('all');
+  
+  // Create Group Modal States
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [groupNameStep, setGroupNameStep] = useState(false);
+  
+  
+  const [postInteractions, setPostInteractions] = useState<{[key: string]: {likes: number, comments: number, shares: number, isLiked: boolean, saved: boolean}}>({});
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [comments, setComments] = useState<{[key: string]: Array<{id: string, user: string, text: string, timestamp: string}>}>({});
+  const [comments, setComments] = useState<{[key: string]: any[]}>({});
   const [newComment, setNewComment] = useState('');
-  const slideAnim = useRef(new Animated.Value(-width * 0.75)).current;
-  const headerOpacity = useRef(new Animated.Value(1)).current;
-  const scrollViewRef = useRef<ScrollView>(null);
-  const tabScrollViewRef = useRef<ScrollView>(null);
+  
+  // In-app sharing states
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [selectedSharePost, setSelectedSharePost] = useState<FeedItem | null>(null);
+  
+  const swipeX = useRef(new Animated.Value(0)).current;
+  const transitionOpacity = useRef(new Animated.Value(1)).current;
 
-  const tabs = ['All', 'Posts', 'Projects', 'Events', 'Clubs'];
+  // Reset messages screen when home tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      setShowMessagesScreen(false);
+      setShowSideMenu(false);
+      // Reset all navigation states when home tab is focused
+      setIsNavigating(false);
+      setMessagesIsNavigating(false);
+      setIsTransitioning(false);
+    }, [])
+  );
+  const { width } = Dimensions.get('window');
 
-  const handleTabPress = (index: number) => {
-    setActiveTabIndex(index);
-    scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
-  };
+  // Mock messages data for preview
+  const MESSAGES_DATA = [
+    { id: '1', name: 'Alex Johnson', message: 'Hey! Are you free for the project meeting tomorrow?', time: '2m', unread: 2, online: true, avatar: 'https://i.pravatar.cc/150?u=alex', type: 'personal' },
+    { id: '2', name: 'Study Group', message: 'Emma: Don\'t forget about the exam next week!', time: '15m', unread: 0, online: false, avatar: 'https://i.pravatar.cc/150?u=studygroup', type: 'group' },
+    { id: '3', name: 'Sarah Wilson', message: 'Thanks for helping me with the assignment 😊', time: '1h', unread: 0, online: true, avatar: 'https://i.pravatar.cc/150?u=sarah', type: 'personal' },
+    { id: '4', name: 'Mike Chen', message: 'Can you send me the presentation slides?', time: '2h', unread: 1, online: false, avatar: 'https://i.pravatar.cc/150?u=mike', type: 'personal' },
+    { id: '5', name: 'Team Alpha', message: 'John: Meeting rescheduled to 3 PM', time: '3h', unread: 3, online: false, avatar: 'https://i.pravatar.cc/150?u=teamalpha', type: 'group' },
+    { id: '6', name: 'Lisa Rodriguez', message: 'Great job on the demo today! 🎉', time: '4h', unread: 0, online: true, avatar: 'https://i.pravatar.cc/150?u=lisa', type: 'personal' },
+    { id: '7', name: 'Dev Team', message: 'Kate: Code review completed', time: '5h', unread: 0, online: false, avatar: 'https://i.pravatar.cc/150?u=devteam', type: 'group' },
+    { id: '8', name: 'David Park', message: 'Let\'s grab coffee sometime this week', time: '6h', unread: 0, online: false, avatar: 'https://i.pravatar.cc/150?u=david', type: 'personal' },
+    { id: '9', name: 'Marketing Squad', message: 'Anna: Campaign launch is tomorrow!', time: '8h', unread: 2, online: false, avatar: 'https://i.pravatar.cc/150?u=marketing', type: 'group' },
+    { id: '10', name: 'Emma Thompson', message: 'Thanks for the feedback on my proposal', time: '12h', unread: 0, online: true, avatar: 'https://i.pravatar.cc/150?u=emma', type: 'personal' },
+    { id: '11', name: 'Ryan Kumar', message: 'Are we still on for the hackathon?', time: '1d', unread: 1, online: false, avatar: 'https://i.pravatar.cc/150?u=ryan', type: 'personal' },
+    { id: '12', name: 'Design Team', message: 'Sophie: New mockups are ready for review', time: '1d', unread: 0, online: false, avatar: 'https://i.pravatar.cc/150?u=design', type: 'group' },
+    { id: '13', name: 'Jessica Lee', message: 'Happy birthday! Hope you have a great day 🎂', time: '2d', unread: 0, online: false, avatar: 'https://i.pravatar.cc/150?u=jessica', type: 'personal' },
+  ];
 
-  const handleScroll = (event: any) => {
-    const scrollX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(scrollX / width);
-    if (index !== activeTabIndex) {
-      setActiveTabIndex(index);
-      // Auto-scroll tab bar to show active tab
-      const tabWidth = 100; // Approximate tab width
-      const tabScrollX = index * tabWidth - width / 2 + tabWidth / 2;
-      tabScrollViewRef.current?.scrollTo({ x: Math.max(0, tabScrollX), animated: true });
-    }
-  };
+  // Mock data for available contacts to create groups
+  const AVAILABLE_CONTACTS = [
+    { id: '1', name: 'Alex Johnson', avatar: 'https://i.pravatar.cc/150?u=alex', online: true },
+    { id: '2', name: 'Sarah Wilson', avatar: 'https://i.pravatar.cc/150?u=sarah', online: true },
+    { id: '3', name: 'Mike Chen', avatar: 'https://i.pravatar.cc/150?u=mike', online: false },
+    { id: '4', name: 'Lisa Rodriguez', avatar: 'https://i.pravatar.cc/150?u=lisa', online: true },
+    { id: '5', name: 'David Park', avatar: 'https://i.pravatar.cc/150?u=david', online: false },
+    { id: '6', name: 'Emma Thompson', avatar: 'https://i.pravatar.cc/150?u=emma', online: true },
+    { id: '7', name: 'Ryan Kumar', avatar: 'https://i.pravatar.cc/150?u=ryan', online: false },
+    { id: '8', name: 'Kate Miller', avatar: 'https://i.pravatar.cc/150?u=kate', online: true },
+    { id: '9', name: 'John Smith', avatar: 'https://i.pravatar.cc/150?u=john', online: false },
+    { id: '10', name: 'Anna Davis', avatar: 'https://i.pravatar.cc/150?u=anna', online: true },
+  ];
 
-  const menuItems = [
+  // Messages data state
+  const [messagesData, setMessagesData] = useState(MESSAGES_DATA);
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      // Don't allow swipe if already navigating, in messages screen, or side menu is open
+      if (isNavigating || showMessagesScreen || showSideMenu) return false;
+      // Only respond to right-to-left swipes (negative dx)
+      return gestureState.dx < 0 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+    },
+    onStartShouldSetPanResponderCapture: () => false,
+    onMoveShouldSetPanResponderCapture: () => false,
+    onPanResponderGrant: () => {
+      if (isNavigating) return;
+      setIsTransitioning(true);
+      Animated.timing(transitionOpacity, {
+        toValue: 0.8,
+        duration: 100,
+        useNativeDriver: true,
+      }).start();
+      swipeX.setOffset((swipeX as any)._value);
+      swipeX.setValue(0);
+    },
+    onPanResponderMove: (_, gestureState) => {
+      if (gestureState.dx < 0) {
+        // Instagram-style progressive resistance curve
+        const progress = Math.abs(gestureState.dx) / width;
+        let resistance = 1;
+        
+        if (progress > 0.3) {
+          // Gradual resistance increase after 30% of screen width
+          resistance = 1 - (progress - 0.3) * 0.8;
+          resistance = Math.max(resistance, 0.15); // Minimum 15% movement
+        }
+        
+        swipeX.setValue(gestureState.dx * resistance);
+      }
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      swipeX.flattenOffset();
+      
+      // Instagram-style threshold: 25% of screen width OR fast velocity
+      const swipeThreshold = width * 0.25;
+      const velocityThreshold = 0.8;
+      const shouldNavigate = 
+        (Math.abs(gestureState.dx) > swipeThreshold) || 
+        (Math.abs(gestureState.vx) > velocityThreshold && gestureState.dx < -30);
+      
+      if (shouldNavigate && !isNavigating) {
+        setIsNavigating(true);
+        
+        // Smooth completion animation to full messages screen
+        Animated.parallel([
+          Animated.timing(swipeX, {
+            toValue: -width,
+            duration: 180,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(transitionOpacity, {
+            toValue: 1,
+            duration: 180,
+            useNativeDriver: true,
+          })
+        ]).start(() => {
+          // Use setTimeout to ensure state updates happen after animation completes
+          setTimeout(() => {
+            setIsNavigating(false);
+            setIsTransitioning(false);
+          }, 50);
+        });
+      } else {
+        // Smooth bounce back without haptic
+        Animated.parallel([
+          Animated.spring(swipeX, {
+            toValue: 0,
+            tension: 220,
+            friction: 10,
+            useNativeDriver: true,
+          }),
+          Animated.timing(transitionOpacity, {
+            toValue: 1,
+            duration: 80,
+            useNativeDriver: true,
+          })
+        ]).start(() => {
+          // Use setTimeout to ensure state updates happen after animation completes
+          setTimeout(() => {
+            setIsNavigating(false);
+            setIsTransitioning(false);
+          }, 50);
+        });
+      }
+    },
+    onPanResponderTerminate: () => {
+      swipeX.flattenOffset();
+      Animated.spring(swipeX, {
+        toValue: 0,
+        tension: 220,
+        friction: 10,
+        useNativeDriver: true,
+      }).start(() => {
+        // Use setTimeout to ensure state updates happen after animation completes
+        setTimeout(() => {
+          setIsNavigating(false);
+        }, 50);
+      });
+    },
+  });
+
+  // Quick actions data
+  const quickActions = [
+    {
+      id: 'leaderboard',
+      title: 'Leaderboard',
+      icon: 'trophy',
+      route: '/LeaderboardScreen',
+      description: 'See top contributors and rankings'
+    },
     {
       id: 'collaborations',
       title: 'Find Collaborators',
@@ -327,20 +491,14 @@ export default function HomeScreen() {
       route: '/CollaborationScreen',
       description: 'Connect with like-minded individuals'
     },
-    {
-      id: 'groups',
-      title: 'Join Groups',
-      icon: 'chatbubbles',
-      route: '/JoinGroupsScreen',
-      description: 'Discover and join communities'
-    },
-    {
-      id: 'events',
-      title: 'Events',
-      icon: 'calendar',
-      route: '/EventsScreen',
-      description: 'Upcoming events and activities'
-    },
+    // TODO: Re-enable for future group features
+    // {
+    //   id: 'groups',
+    //   title: 'Join Groups',
+    //   icon: 'chatbubbles',
+    //   route: '/JoinGroupsScreen',
+    //   description: 'Discover and join communities'
+    // },
     {
       id: 'saved',
       title: 'Saved',
@@ -383,7 +541,7 @@ export default function HomeScreen() {
     const feedItem = FEED_DATA.find(item => item.id === postId);
     
     setPostInteractions(prev => {
-      const current = prev[postId] || { liked: false, likes: 42, comments: 8, shares: 3, saved: false };
+      const current = prev[postId] || { isLiked: false, likes: 42, comments: 8, shares: 3, saved: false };
       
       switch (action) {
         case 'like':
@@ -391,8 +549,8 @@ export default function HomeScreen() {
             ...prev,
             [postId]: {
               ...current,
-              liked: !current.liked,
-              likes: current.liked ? current.likes - 1 : current.likes + 1
+              isLiked: !current.isLiked,
+              likes: current.isLiked ? current.likes - 1 : current.likes + 1
             }
           };
         case 'comment':
@@ -425,7 +583,64 @@ export default function HomeScreen() {
     });
   };
 
-  const handleShare = async (item: FeedItem) => {
+  // Create Group Modal Handlers
+  const handleCreateGroup = () => {
+    if (!groupNameStep) {
+      // First step: Select members
+      if (selectedMembers.length === 0) {
+        Alert.alert('Select Members', 'Please select at least one member to create a group.');
+        return;
+      }
+      setGroupNameStep(true);
+    } else {
+      // Second step: Create group with name
+      if (!groupName.trim()) {
+        Alert.alert('Group Name Required', 'Please enter a name for your group.');
+        return;
+      }
+      
+      // Create the group (mock implementation)
+      Alert.alert(
+        'Group Created!', 
+        `"${groupName}" has been created with ${selectedMembers.length} members.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Reset modal state
+              setShowCreateGroupModal(false);
+              setGroupName('');
+              setSelectedMembers([]);
+              setGroupNameStep(false);
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  const toggleMemberSelection = (memberId: string) => {
+    setSelectedMembers(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
+
+  const handleCloseCreateGroupModal = () => {
+    setShowCreateGroupModal(false);
+    setGroupName('');
+    setSelectedMembers([]);
+    setGroupNameStep(false);
+  };
+
+
+  const handleShare = (item: FeedItem) => {
+    setSelectedSharePost(item);
+    setShowShareModal(true);
+  };
+
+  const handleExternalShare = async (item: FeedItem) => {
     try {
       let shareSuccess = false;
       
@@ -477,12 +692,22 @@ export default function HomeScreen() {
       
       if (shareSuccess) {
         console.log(`Successfully shared ${item.type}:`, item.id);
+        // Update share count
+        setPostInteractions(prev => ({
+          ...prev,
+          [item.id]: {
+            ...prev[item.id],
+            shares: (prev[item.id]?.shares || 0) + 1
+          }
+        }));
       }
     } catch (error) {
       console.error('Error sharing item:', error);
       Alert.alert('Share Error', 'Unable to share this content.');
     }
   };
+
+
 
   const handleAddComment = () => {
     if (newComment.trim() && selectedPostId) {
@@ -498,42 +723,23 @@ export default function HomeScreen() {
         [selectedPostId]: [...(prev[selectedPostId] || []), comment]
       }));
       
-      setPostInteractions(prev => ({
-        ...prev,
-        [selectedPostId]: {
-          ...prev[selectedPostId],
-          comments: (prev[selectedPostId]?.comments || 0) + 1
-        }
-      }));
-      
       setNewComment('');
     }
   };
 
-  useEffect(() => {
-    if (showSideMenu) {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: -width * 0.75,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [showSideMenu]);
+
 
   const handleMenuItemPress = (route: string) => {
     setShowSideMenu(false);
-    if (route === '/CollaborationScreen') {
+    if (route === '/LeaderboardScreen') {
+      router.push('/LeaderboardScreen');
+    } else if (route === '/CollaborationScreen') {
       router.push('/CollaborationScreen');
     } else if (route === '/SavedScreen') {
       router.push('/SavedScreen');
-    } else if (route === '/JoinGroupsScreen') {
-      router.push('/JoinGroupsScreen');
+    // TODO: Re-enable for future group features
+    // } else if (route === '/JoinGroupsScreen') {
+    //   router.push('/JoinGroupsScreen');
     } else {
       console.log(`Navigate to ${route}`);
     }
@@ -550,8 +756,8 @@ export default function HomeScreen() {
       router.push('/CollaborationScreen');
     } else if (route === '/CreateScreen') {
       router.push('/CreateScreen');
-    } else if (route === '/MessagesScreen') {
-      router.push('/MessagesScreen');
+    } else if (route === '/messages') {
+      setShowMessagesScreen(true);
     } else {
       console.log(`Navigate to ${route}`);
     }
@@ -588,14 +794,13 @@ export default function HomeScreen() {
             // Clear any stored user data/tokens here
             // Reset app state
             setShowSideMenu(false);
-            setActiveFilter('All');
+            setActiveFilter('all');
             setPostInteractions({});
-            // Reset theme handled by context
             
             console.log('User logged out successfully');
             
-            // Navigate back to root or login screen
-            router.replace('/(tabs)');
+            // Navigate to login screen
+            router.replace('/LoginScreen');
             
             // Show logout confirmation
             setTimeout(() => {
@@ -612,7 +817,6 @@ export default function HomeScreen() {
     if (activeFilter === 'All') return FEED_DATA;
     if (activeFilter === 'Posts') return FEED_DATA.filter(item => item.type === 'post');
     if (activeFilter === 'Projects') return FEED_DATA.filter(item => item.type === 'project');
-    if (activeFilter === 'Events') return FEED_DATA.filter(item => item.type === 'event');
     if (activeFilter === 'Clubs') return FEED_DATA.filter(item => item.type === 'club');
     return FEED_DATA.filter(item => item.type === activeFilter.toLowerCase().slice(0, -1));
   }, [activeFilter]);
@@ -736,9 +940,9 @@ export default function HomeScreen() {
                 onPress={() => handlePostInteraction(item.id, 'like')}
               >
                 <Ionicons 
-                  name={interactions.liked ? "heart" : "heart-outline"} 
+                  name={interactions.isLiked ? "heart" : "heart-outline"} 
                   size={18} 
-                  color={interactions.liked ? "#ea580c" : "#6B7280"} 
+                  color={interactions.isLiked ? "#ea580c" : "#6B7280"} 
                 />
                 <Text style={styles.projectStatText}>{interactions.likes}</Text>
               </TouchableOpacity>
@@ -861,9 +1065,9 @@ export default function HomeScreen() {
               onPress={() => handlePostInteraction(item.id, 'like')}
             >
               <Ionicons 
-                name={interactions.liked ? "heart" : "heart-outline"} 
+                name={interactions.isLiked ? "heart" : "heart-outline"} 
                 size={24} 
-                color={interactions.liked ? "#e11d48" : "#991B1B"} 
+                color={interactions.isLiked ? "#e11d48" : "#991B1B"} 
               />
             </TouchableOpacity>
             <TouchableOpacity 
@@ -920,254 +1124,713 @@ export default function HomeScreen() {
     );
   }
 
+  // Import the actual MessagesScreen component content
+  const MessagesScreenComponent = () => {
+    const [activeFilter, setActiveFilter] = useState('All');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filteredMessages, setFilteredMessages] = useState(MESSAGES_DATA);
+    
+    // Add swipe gesture for messages screen to go back to home
+    const messagesSwipeX = useRef(new Animated.Value(0)).current;
+    const [messagesIsNavigating, setMessagesIsNavigating] = useState(false);
+
+    const messagesPanResponder = PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (messagesIsNavigating) return false;
+        // Only respond to left-to-right swipes (positive dx) to go back
+        return gestureState.dx > 0 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+      },
+      onPanResponderGrant: () => {
+        if (messagesIsNavigating) return;
+        messagesSwipeX.setOffset((messagesSwipeX as any)._value);
+        messagesSwipeX.setValue(0);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dx > 0) {
+          const progress = gestureState.dx / width;
+          let resistance = 1;
+          
+          if (progress > 0.3) {
+            resistance = 1 - (progress - 0.3) * 0.8;
+            resistance = Math.max(resistance, 0.15);
+          }
+          
+          messagesSwipeX.setValue(gestureState.dx * resistance);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        messagesSwipeX.flattenOffset();
+        
+        const swipeThreshold = width * 0.25;
+        const velocityThreshold = 0.8;
+        const shouldGoBack = 
+          (Math.abs(gestureState.dx) > swipeThreshold) || 
+          (Math.abs(gestureState.vx) > velocityThreshold && gestureState.dx > 30);
+        
+        if (shouldGoBack && !messagesIsNavigating) {
+          setMessagesIsNavigating(true);
+          Animated.timing(messagesSwipeX, {
+            toValue: width,
+            duration: 180,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }).start(() => {
+            setShowMessagesScreen(false);
+            messagesSwipeX.setValue(0);
+            swipeX.setValue(0);
+            // Use setTimeout to ensure proper state cleanup
+            setTimeout(() => {
+              setIsNavigating(false);
+              setMessagesIsNavigating(false);
+            }, 50);
+          });
+        } else {
+          Animated.spring(messagesSwipeX, {
+            toValue: 0,
+            tension: 220,
+            friction: 10,
+            useNativeDriver: true,
+          }).start(() => {
+            // Use setTimeout to ensure state updates happen after animation completes
+            setTimeout(() => {
+              setMessagesIsNavigating(false);
+            }, 50);
+          });
+        }
+      },
+      onPanResponderTerminate: () => {
+        messagesSwipeX.flattenOffset();
+        Animated.spring(messagesSwipeX, {
+          toValue: 0,
+          tension: 220,
+          friction: 10,
+          useNativeDriver: true,
+        }).start(() => {
+          // Use setTimeout to ensure state updates happen after animation completes
+          setTimeout(() => {
+            setMessagesIsNavigating(false);
+          }, 50);
+        });
+      },
+    });
+
+    const handleSearch = (query: string) => {
+      setSearchQuery(query);
+      
+      if (!query.trim()) {
+        setFilteredMessages(MESSAGES_DATA);
+        return;
+      }
+      
+      const filtered = MESSAGES_DATA.filter(message => 
+        message.name.toLowerCase().includes(query.toLowerCase()) ||
+        message.message.toLowerCase().includes(query.toLowerCase())
+      );
+      
+      setFilteredMessages(filtered);
+    };
+
+    const handleFilterChange = (filter: string) => {
+      setActiveFilter(filter);
+      
+      let filtered = MESSAGES_DATA;
+      
+      if (searchQuery.trim()) {
+        filtered = filtered.filter(message => 
+          message.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          message.message.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+      
+      switch (filter) {
+        case 'Unread':
+          filtered = filtered.filter(message => message.unread > 0);
+          break;
+        case 'Groups':
+          filtered = filtered.filter(message => message.type === 'group');
+          break;
+        case 'All':
+        default:
+          break;
+      }
+      
+      setFilteredMessages(filtered);
+    };
+
+    return (
+      <Animated.View 
+        style={[
+          { flex: 1, backgroundColor: '#FFFFFF' },
+          { transform: [{ translateX: messagesSwipeX }] }
+        ]}
+        {...messagesPanResponder.panHandlers}
+      >
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          {/* Header with Title */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingTop: 50,
+            paddingBottom: 16,
+            backgroundColor: '#fef2f2'
+          }}>
+            <TouchableOpacity 
+              style={{ 
+                padding: 8,
+                backgroundColor: '#FFFFFF',
+                borderRadius: 12,
+                shadowColor: '#991B1B',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                elevation: 2
+              }}
+              onPress={() => {
+                // Simple immediate navigation back without complex animations
+                setShowMessagesScreen(false);
+                // Reset all animation values to prevent conflicts
+                messagesSwipeX.setValue(0);
+                swipeX.setValue(0);
+                // Use setTimeout to ensure proper state cleanup
+                setTimeout(() => {
+                  setIsNavigating(false);
+                  setMessagesIsNavigating(false);
+                  setIsTransitioning(false);
+                }, 50);
+              }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#991B1B" />
+            </TouchableOpacity>
+            
+            <Text style={{
+              fontSize: 28,
+              fontWeight: 'bold',
+              color: '#991B1B',
+              letterSpacing: -0.5,
+              position: 'absolute',
+              left: '50%',
+              top: 25,
+              transform: [{ translateX: -50 }]
+            }}>Messages</Text>
+            
+            <TouchableOpacity 
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: '#FFFFFF',
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 4,
+                elevation: 3
+              }}
+              onPress={() => setShowCreateGroupModal(true)}
+            >
+              <Ionicons name="add" size={20} color="#991B1B" />
+            </TouchableOpacity>
+          </View>
+          {/* Search Bar */}
+          <View style={{
+            paddingHorizontal: 20,
+            paddingBottom: 16,
+            backgroundColor: '#fef2f2'
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              paddingHorizontal: 16,
+              height: 44,
+              borderWidth: 1,
+              borderColor: 'rgba(153, 27, 27, 0.08)',
+              shadowColor: '#991B1B',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.06,
+              shadowRadius: 6,
+              elevation: 2
+            }}>
+              <Ionicons name="search" size={20} color="#6B7280" />
+              <TextInput
+                placeholder="Search messages..."
+                placeholderTextColor="#6B7280"
+                style={{
+                  flex: 1,
+                  fontSize: 16,
+                  color: '#111827',
+                  marginLeft: 12
+                }}
+                value={searchQuery}
+                onChangeText={handleSearch}
+              />
+            </View>
+          </View>
+
+          {/* Filter Tabs */}
+          <View style={{
+            flexDirection: 'row',
+            paddingHorizontal: 20,
+            paddingBottom: 16,
+            backgroundColor: '#fef2f2'
+          }}>
+            {['All', 'Unread', 'Groups'].map((filter) => (
+              <TouchableOpacity
+                key={filter}
+                onPress={() => handleFilterChange(filter)}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  marginRight: 12,
+                  borderRadius: 20,
+                  backgroundColor: activeFilter === filter ? '#991B1B' : '#FFFFFF',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                  elevation: 2
+                }}
+              >
+                <Text style={{
+                  color: activeFilter === filter ? '#FFFFFF' : '#6B7280',
+                  fontWeight: activeFilter === filter ? '600' : '400',
+                  fontSize: 14
+                }}>
+                  {filter}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Chat List */}
+          <View style={{ backgroundColor: '#FFFFFF' }}>
+            {filteredMessages.map((item) => (
+              <TouchableOpacity 
+                key={item.id} 
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  backgroundColor: '#FFFFFF',
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#F3F4F6'
+                }}
+                onPress={() => router.push(`/chat/${item.id}`)}
+              >
+                <View style={{ position: 'relative', marginRight: 12 }}>
+                  <Image 
+                    source={{ uri: item.avatar }} 
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                    }}
+                  />
+                  {item.online && (
+                    <View style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      width: 14,
+                      height: 14,
+                      borderRadius: 7,
+                      backgroundColor: '#10B981',
+                      borderWidth: 2,
+                      borderColor: '#FFFFFF',
+                    }} />
+                  )}
+                  {item.type === 'group' && (
+                    <View style={{
+                      position: 'absolute',
+                      top: -2,
+                      right: -2,
+                      width: 16,
+                      height: 16,
+                      borderRadius: 8,
+                      backgroundColor: '#991B1B',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Ionicons name="people" size={10} color="#FFFFFF" />
+                    </View>
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={{
+                      fontSize: 16,
+                      fontWeight: '600',
+                      color: '#1F2937',
+                    }}>{item.name}</Text>
+                    <Text style={{
+                      fontSize: 12,
+                      color: '#6B7280',
+                    }}>{item.time}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text 
+                      style={{
+                        fontSize: 14,
+                        color: '#6B7280',
+                        flex: 1,
+                        marginRight: 8
+                      }}
+                      numberOfLines={1}
+                    >
+                      {item.message}
+                    </Text>
+                    {item.unread > 0 && (
+                      <View style={{
+                        backgroundColor: '#991B1B',
+                        borderRadius: 10,
+                        minWidth: 20,
+                        height: 20,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingHorizontal: 6
+                      }}>
+                        <Text style={{
+                          color: '#FFFFFF',
+                          fontSize: 12,
+                          fontWeight: '600'
+                        }}>
+                          {item.unread}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </Animated.View>
+    );
+  };
+
+
+
+  // Show swipe messages screen if triggered by swipe gesture
+  if (showMessagesScreen) {
+    return (
+      <ErrorBoundary>
+        <View style={{ flex: 1, position: 'relative' }}>
+          <StatusBar barStyle="dark-content" backgroundColor="#fef2f2" translucent={true} />
+          
+          {/* Home Screen Background - always visible */}
+          <SafeAreaView style={[{ flex: 1, backgroundColor: '#FFFFFF' }]}>
+            {/* Render home screen content behind messages */}
+            <View style={{ flex: 1, position: 'relative' }}>
+              <Animated.View 
+                style={[{ flex: 1 }]}
+              >
+                {/* Header */}
+                <Animated.View style={[{ 
+                  flexDirection: 'row', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  paddingHorizontal: 20,
+                  paddingTop: 10,
+                  paddingBottom: 15,
+                  backgroundColor: '#fef2f2'
+                }]}>
+                  <Text style={{
+                    fontSize: 32,
+                    fontWeight: 'bold',
+                    color: '#991B1B',
+                    letterSpacing: -1
+                  }}>Harshtech</Text>
+                  
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity
+                      onPress={() => setShowMessagesScreen(true)}
+                    >
+                      <Ionicons name="chatbubble-outline" size={28} color="#991B1B" />
+                    </TouchableOpacity>
+                  </View>
+                </Animated.View>
+                
+                {/* Rest of home content would go here */}
+                <View style={{ flex: 1, backgroundColor: '#FFFFFF' }} />
+              </Animated.View>
+            </View>
+          </SafeAreaView>
+          
+          {/* Messages Screen Overlay */}
+          <View 
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: '#FFFFFF',
+              zIndex: 1
+            }}
+          >
+            <MessagesScreenComponent />
+          </View>
+        </View>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <SafeAreaView style={[{ flex: 1, backgroundColor: '#FFFFFF' }]}>
         <StatusBar barStyle="dark-content" backgroundColor="#fef2f2" translucent={true} />
         
-        {/* Header */}
-        <Animated.View style={[{ 
-          flexDirection: 'row', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          paddingHorizontal: 20, 
-          paddingTop: 50, 
-          paddingBottom: 16, 
-          backgroundColor: '#fef2f2'
-        }, { opacity: headerOpacity }]}>
-          <TouchableOpacity 
-            style={{ 
-              padding: 8,
-              backgroundColor: '#FFFFFF',
-              borderRadius: 12,
-              shadowColor: '#991B1B',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3
-            }}
-            onPress={() => setShowSideMenu(true)}
+        {/* Entire Home Screen with Swipe Gesture */}
+        <View style={{ flex: 1, position: 'relative' }}>
+          {/* Messages Screen positioned off-screen to the right - always rendered */}
+          <Animated.View 
+            style={[
+              { 
+                position: 'absolute',
+                top: 0,
+                left: width,
+                right: -width,
+                bottom: 0,
+                backgroundColor: '#FFFFFF',
+                zIndex: 1
+              },
+              { transform: [{ translateX: swipeX }] }
+            ]}
           >
-            <Ionicons name="menu" size={24} color="#991B1B" />
-          </TouchableOpacity>
+            <MessagesScreenComponent />
+          </Animated.View>
           
-          <Text style={{ 
-            fontSize: 28, 
-            fontWeight: 'bold', 
-            color: '#991B1B',
-            letterSpacing: -0.5
-          }}>Home</Text>
-          
-          <TouchableOpacity 
-            style={{ 
-              padding: 8, 
-              position: 'relative',
-              backgroundColor: '#FFFFFF',
-              borderRadius: 12,
-              shadowColor: '#991B1B',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3
-            }}
-            onPress={() => router.push('/NotificationsScreen')}
+          <Animated.View 
+            style={[
+              { flex: 1 }, 
+              { transform: [{ translateX: swipeX }] },
+              { opacity: transitionOpacity }
+            ]}
+            {...(!showSideMenu ? panResponder.panHandlers : {})}
           >
-            <Ionicons name="notifications-outline" size={24} color="#991B1B" />
-            <View style={{ 
-              position: 'absolute', 
-              top: 4, 
-              right: 4, 
-              backgroundColor: '#991B1B', 
-              borderRadius: 8, 
-              width: 16, 
-              height: 16, 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}>
-              <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 'bold' }}>3</Text>
-            </View>
-            </TouchableOpacity>
-        </Animated.View>
+            {/* Main Feed with Scrolling Header */}
+            <ScrollView 
+              style={{ backgroundColor: '#F8F9FA', flex: 1 }}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={['#991B1B']}
+                  tintColor={'#991B1B'}
+                />
+              }
+            >
+              {/* Header - Now inside ScrollView */}
+              <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                paddingHorizontal: 20, 
+                paddingTop: 50, 
+                paddingBottom: 16, 
+                backgroundColor: '#fef2f2'
+              }}>
+                <TouchableOpacity 
+                  style={{ 
+                    padding: 8,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 12,
+                    shadowColor: '#991B1B',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 3,
+                    zIndex: 9999
+                  }}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    console.log('Menu button pressed', { isNavigating, isTransitioning, messagesIsNavigating, showSideMenu });
+                    setShowSideMenu(true);
+                  }}
+                >
+                  <Ionicons name="menu" size={24} color="#991B1B" />
+                </TouchableOpacity>
+                
+                <Text style={{ 
+                  fontSize: 28, 
+                  fontWeight: 'bold', 
+                  color: '#991B1B',
+                  letterSpacing: -0.5
+                }}>Home</Text>
+                
+                <TouchableOpacity 
+                  style={{ 
+                    padding: 8,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 12,
+                    shadowColor: '#991B1B',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 3
+                  }}
+                  onPress={() => setShowMessagesScreen(true)}
+                >
+                  <Ionicons name="chatbubble-outline" size={24} color="#991B1B" />
+                </TouchableOpacity>
+              </View>
 
-        {/* Swipeable Tabs */}
-        <View style={{ 
-          backgroundColor: '#FFFFFF', 
-          paddingVertical: 12, 
-          borderBottomWidth: 1, 
-          borderBottomColor: '#E5E7EB' 
-        }}>
-          <ScrollView ref={tabScrollViewRef} horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 16 }}>
-            {tabs.map((tab, index) => (
-              <TouchableOpacity
-                key={tab}
-                style={{
-                  paddingHorizontal: 20,
-                  paddingVertical: 8,
-                  marginRight: 12,
-                  borderRadius: 20,
-                  backgroundColor: activeTabIndex === index ? '#991B1B' : 'transparent',
-                  borderWidth: 1,
-                  borderColor: activeTabIndex === index ? '#991B1B' : '#E5E7EB'
-                }}
-                onPress={() => handleTabPress(index)}
-              >
-                <Text style={{
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: activeTabIndex === index ? '#FFFFFF' : '#991B1B'
-                }}>
-                  {tab}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+              {/* Feed Content */}
+              <View style={{ paddingTop: 8, paddingBottom: 16 }}>
+                {FEED_DATA.map((item, index) => (
+                  <View key={item.id}>
+                    {renderItem({ item, index })}
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </Animated.View>
+          
+          {/* Messages Screen Preview */}
+          <Animated.View 
+            style={[{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: width,
+              backgroundColor: '#fef2f2',
+              transform: [{
+                translateX: swipeX.interpolate({
+                  inputRange: [-width, 0],
+                  outputRange: [0, width],
+                  extrapolate: 'clamp',
+                }),
+              }],
+            }]}
+            pointerEvents="box-none"
+          >
+            {/* Messages Header */}
+            <View 
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 20,
+                paddingTop: 50,
+                paddingBottom: 16,
+                backgroundColor: '#fef2f2'
+              }}
+              pointerEvents="auto"
+            >
+              <Text style={{
+                fontSize: 28,
+                fontWeight: 'bold',
+                color: '#991B1B',
+                letterSpacing: -0.5
+              }}>Messages</Text>
+            </View>
+            
+            {/* Chat List */}
+            <ScrollView 
+              style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+              scrollEnabled={true}
+              nestedScrollEnabled={true}
+              pointerEvents="auto"
+            >
+              {messagesData.map((item) => (
+                <View
+                  key={item.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    backgroundColor: '#FFFFFF',
+                  }}
+                >
+                  <Pressable
+                    onPress={() => router.push(`/chat/${item.id}`)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      flex: 1,
+                    }}
+                  >
+                  <View style={{ position: 'relative', marginRight: 12 }}>
+                    <Image 
+                      source={{ uri: item.avatar }} 
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                      }}
+                    />
+                    {item.online && (
+                      <View style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        right: 0,
+                        width: 14,
+                        height: 14,
+                        borderRadius: 7,
+                        backgroundColor: '#10B981',
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                      }} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <Text style={{
+                        fontSize: 16,
+                        fontWeight: '600',
+                        color: '#1F2937',
+                      }}>{item.name}</Text>
+                      <Text style={{
+                        fontSize: 12,
+                        color: '#6B7280',
+                      }}>{item.time}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{
+                        fontSize: 14,
+                        color: '#6B7280',
+                        flex: 1,
+                        marginRight: 8,
+                      }} numberOfLines={1}>{item.message}</Text>
+                      {item.unread > 0 && (
+                        <View style={{
+                          backgroundColor: '#991B1B',
+                          borderRadius: 10,
+                          minWidth: 20,
+                          height: 20,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          paddingHorizontal: 6,
+                        }}>
+                          <Text style={{
+                            color: '#FFFFFF',
+                            fontSize: 12,
+                            fontWeight: 'bold',
+                          }}>{item.unread}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
+          </Animated.View>
         </View>
 
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleScroll}
-          style={{ flex: 1 }}
-        >
-          {/* All Tab Content */}
-          <ScrollView 
-            style={{ width: width, backgroundColor: '#F8F9FA' }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#991B1B']}
-                tintColor={'#991B1B'}
-              />
-            }
-          >
-            <View style={{ paddingTop: 8, paddingBottom: 16 }}>
-              {FEED_DATA.map((item, index) => (
-                <View key={item.id}>
-                  {renderItem({ item, index })}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
 
-          {/* Posts Tab Content */}
-          <ScrollView 
-            style={{ width: width, backgroundColor: '#F8F9FA' }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#991B1B']}
-                tintColor={'#991B1B'}
-              />
-            }
-          >
-            <View style={{ paddingTop: 8, paddingBottom: 16 }}>
-              {FEED_DATA.filter(item => item.type === 'post').map((item, index) => (
-                <View key={item.id}>
-                  {renderItem({ item, index })}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-
-          {/* Projects Tab Content */}
-          <ScrollView 
-            style={{ width: width, backgroundColor: '#F8F9FA' }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#991B1B']}
-                tintColor={'#991B1B'}
-              />
-            }
-          >
-            <View style={{ paddingTop: 8, paddingBottom: 16 }}>
-              {FEED_DATA.filter(item => item.type === 'project').map((item, index) => (
-                <View key={item.id}>
-                  {renderItem({ item, index })}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-
-          {/* Events Tab Content */}
-          <ScrollView 
-            style={{ width: width, backgroundColor: '#F8F9FA' }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#991B1B']}
-                tintColor={'#991B1B'}
-              />
-            }
-          >
-            <View style={{ paddingTop: 8, paddingBottom: 16 }}>
-              {FEED_DATA.filter(item => item.type === 'event').map((item, index) => (
-                <View key={item.id}>
-                  {renderItem({ item, index })}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-
-          {/* Clubs Tab Content */}
-          <ScrollView 
-            style={{ width: width, backgroundColor: '#F8F9FA' }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#991B1B']}
-                tintColor={'#991B1B'}
-              />
-            }
-          >
-            <View style={{ paddingTop: 8, paddingBottom: 16 }}>
-              {FEED_DATA.filter(item => item.type === 'club').map((item, index) => (
-                <View key={item.id}>
-                  {renderItem({ item, index })}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-        </ScrollView>
-
-        {/* Messages Button */}
-        <TouchableOpacity 
-          style={{
-            position: 'absolute',
-            bottom: 100,
-            right: 20,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: '#991B1B',
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: '#991B1B',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 8
-          }}
-          onPress={() => router.push('/MessagesScreen')}
-        >
-          <Ionicons name="chatbubbles" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
 
         {/* Enhanced Side Menu Modal */}
         <Modal
-          animationType="slide"
+          animationType="none"
           transparent={true}
           visible={showSideMenu}
           onRequestClose={() => setShowSideMenu(false)}
@@ -1177,8 +1840,8 @@ export default function HomeScreen() {
             activeOpacity={1}
             onPress={() => setShowSideMenu(false)}
           >
-            <Animated.View 
-              style={[{
+            <View 
+              style={{
                 position: 'absolute',
                 left: 0,
                 top: 0,
@@ -1190,7 +1853,7 @@ export default function HomeScreen() {
                 shadowOpacity: 0.25,
                 shadowRadius: 10,
                 elevation: 10
-              }, { transform: [{ translateX: slideAnim }] }]}
+              }}
             >
               <LinearGradient
                 colors={['#991B1B', '#FFF4E9']}
@@ -1227,7 +1890,7 @@ export default function HomeScreen() {
               </LinearGradient>
 
               <ScrollView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-                {menuItems.map((item) => (
+                {quickActions.map((item) => (
                   <TouchableOpacity
                     key={item.id}
                     style={{
@@ -1280,7 +1943,6 @@ export default function HomeScreen() {
                 {/* Logout Button at Bottom */}
                 <TouchableOpacity 
                   style={{
-                    marginTop: 20,
                     paddingHorizontal: 20,
                     paddingVertical: 16,
                     borderTopWidth: 1,
@@ -1296,9 +1958,11 @@ export default function HomeScreen() {
                   }}>Logout</Text>
                 </TouchableOpacity>
               </ScrollView>
-            </Animated.View>
+            </View>
           </TouchableOpacity>
         </Modal>
+
+
 
         {/* Comments Modal */}
         <Modal
@@ -1365,6 +2029,234 @@ export default function HomeScreen() {
             </View>
           </KeyboardAvoidingView>
         </Modal>
+
+        {/* Create Group Modal */}
+        <Modal
+          animationType="slide"
+          transparent={false}
+          visible={showCreateGroupModal}
+          onRequestClose={handleCloseCreateGroupModal}
+        >
+          <SafeAreaView style={styles.fullScreenModal}>
+            <View style={styles.createGroupHeader}>
+              <TouchableOpacity 
+                onPress={handleCloseCreateGroupModal}
+                style={styles.createGroupBackButton}
+              >
+                <Ionicons name="arrow-back" size={24} color="#991B1B" />
+              </TouchableOpacity>
+              
+              <Text style={styles.createGroupTitle}>
+                {!groupNameStep ? 'Select Members' : 'Name Your Group'}
+              </Text>
+              
+              <TouchableOpacity 
+                onPress={handleCreateGroup}
+                style={[
+                  styles.createGroupNextButton,
+                  (!groupNameStep && selectedMembers.length === 0) || (groupNameStep && !groupName.trim()) 
+                    ? styles.createGroupNextButtonDisabled 
+                    : null
+                ]}
+                disabled={(!groupNameStep && selectedMembers.length === 0) || (groupNameStep && !groupName.trim())}
+              >
+                <Text style={[
+                  styles.createGroupNextButtonText,
+                  (!groupNameStep && selectedMembers.length === 0) || (groupNameStep && !groupName.trim()) 
+                    ? styles.createGroupNextButtonTextDisabled 
+                    : null
+                ]}>
+                  {!groupNameStep ? 'Next' : 'Create'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {!groupNameStep ? (
+              // Step 1: Select Members
+              <ScrollView style={styles.createGroupContent}>
+                <Text style={styles.createGroupSubtitle}>
+                  Choose people to add to your group
+                </Text>
+                
+                {selectedMembers.length > 0 && (
+                  <View style={styles.selectedMembersContainer}>
+                    <Text style={styles.selectedMembersTitle}>
+                      Selected ({selectedMembers.length})
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={styles.selectedMembersList}>
+                        {selectedMembers.map(memberId => {
+                          const member = AVAILABLE_CONTACTS.find(c => c.id === memberId);
+                          return member ? (
+                            <View key={memberId} style={styles.selectedMemberItem}>
+                              <Image source={{ uri: member.avatar }} style={styles.selectedMemberAvatar} />
+                              <Text style={styles.selectedMemberName}>{member.name.split(' ')[0]}</Text>
+                              <TouchableOpacity 
+                                onPress={() => toggleMemberSelection(memberId)}
+                                style={styles.removeMemberButton}
+                              >
+                                <Ionicons name="close-circle" size={20} color="#EF4444" />
+                              </TouchableOpacity>
+                            </View>
+                          ) : null;
+                        })}
+                      </View>
+                    </ScrollView>
+                  </View>
+                )}
+
+                <View style={styles.availableContactsList}>
+                  {AVAILABLE_CONTACTS.map(contact => (
+                    <TouchableOpacity
+                      key={contact.id}
+                      style={[
+                        styles.contactItem,
+                        selectedMembers.includes(contact.id) ? styles.contactItemSelected : null
+                      ]}
+                      onPress={() => toggleMemberSelection(contact.id)}
+                    >
+                      <View style={styles.contactInfo}>
+                        <View style={styles.contactAvatarContainer}>
+                          <Image source={{ uri: contact.avatar }} style={styles.contactAvatar} />
+                          {contact.online && <View style={styles.onlineIndicatorShare} />}
+                        </View>
+                        <Text style={styles.contactName}>{contact.name}</Text>
+                      </View>
+                      
+                      <View style={[
+                        styles.selectionIndicator,
+                        selectedMembers.includes(contact.id) ? styles.selectionIndicatorSelected : null
+                      ]}>
+                        {selectedMembers.includes(contact.id) && (
+                          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            ) : (
+              // Step 2: Name the Group
+              <View style={styles.createGroupContent}>
+                <Text style={styles.createGroupSubtitle}>
+                  Give your group a name
+                </Text>
+                
+                <View style={styles.groupNameInputContainer}>
+                  <TextInput
+                    style={styles.groupNameInput}
+                    placeholder="Enter group name..."
+                    placeholderTextColor="#9CA3AF"
+                    value={groupName}
+                    onChangeText={setGroupName}
+                    maxLength={50}
+                    autoFocus
+                  />
+                  <Text style={styles.characterCount}>{groupName.length}/50</Text>
+                </View>
+
+                <View style={styles.groupPreview}>
+                  <Text style={styles.groupPreviewTitle}>Group Preview</Text>
+                  <View style={styles.groupPreviewCard}>
+                    <View style={styles.groupPreviewHeader}>
+                      <View style={styles.groupPreviewAvatar}>
+                        <Ionicons name="people" size={24} color="#991B1B" />
+                      </View>
+                      <View style={styles.groupPreviewInfo}>
+                        <Text style={styles.groupPreviewName}>
+                          {groupName.trim() || 'Group Name'}
+                        </Text>
+                        <Text style={styles.groupPreviewMembers}>
+                          {selectedMembers.length} members
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+          </SafeAreaView>
+        </Modal>
+
+        {/* Simple Share Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showShareModal}
+          onRequestClose={() => setShowShareModal(false)}
+        >
+          <View style={styles.shareModalOverlay}>
+            <View style={styles.shareModalContainer}>
+              {/* Modal Header */}
+              <View style={styles.shareModalHeader}>
+                <TouchableOpacity onPress={() => setShowShareModal(false)}>
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+                <Text style={styles.shareModalTitle}>Share</Text>
+                <View style={{ width: 24 }} />
+              </View>
+
+              {selectedSharePost && (
+                <>
+                  {/* Post Preview */}
+                  <View style={styles.sharePostPreview}>
+                    <View style={styles.sharePostHeader}>
+                      <Image 
+                        source={{ uri: selectedSharePost.user?.avatar || 'https://i.pravatar.cc/150?u=default' }} 
+                        style={styles.sharePostAvatar}
+                      />
+                      <View style={styles.sharePostUserInfo}>
+                        <Text style={styles.sharePostUsername}>{selectedSharePost.user?.name || 'Anonymous'}</Text>
+                        <Text style={styles.sharePostTime}>{selectedSharePost.time || 'now'}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.sharePostContent} numberOfLines={3}>
+                      {selectedSharePost.content || selectedSharePost.title}
+                    </Text>
+                  </View>
+
+                  {/* Share Options */}
+                  <ScrollView style={styles.shareOptionsContainer}>
+                    {/* External Share */}
+                    <TouchableOpacity 
+                      style={styles.shareOption}
+                      onPress={() => {
+                        setShowShareModal(false);
+                        handleExternalShare(selectedSharePost);
+                      }}
+                    >
+                      <View style={styles.shareOptionIcon}>
+                        <Ionicons name="share-outline" size={24} color="#991B1B" />
+                      </View>
+                      <View style={styles.shareOptionText}>
+                        <Text style={styles.shareOptionTitle}>Share externally</Text>
+                        <Text style={styles.shareOptionSubtitle}>Share to other apps</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Copy Link */}
+                    <TouchableOpacity 
+                      style={styles.shareOption}
+                      onPress={() => {
+                        Alert.alert('Link Copied!', 'Post link copied to clipboard');
+                        setShowShareModal(false);
+                      }}
+                    >
+                      <View style={styles.shareOptionIcon}>
+                        <Ionicons name="link" size={24} color="#991B1B" />
+                      </View>
+                      <View style={styles.shareOptionText}>
+                        <Text style={styles.shareOptionTitle}>Copy link</Text>
+                        <Text style={styles.shareOptionSubtitle}>Copy post link</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </ScrollView>
+                </>
+              )}
+            </View>
+          </View>
+        </Modal>
+
       </SafeAreaView>
     </ErrorBoundary>
   );
@@ -1556,7 +2448,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 14,
-    color: '#dc2626',
+    color: '#991B1B',
     fontWeight: '500'
   },
 
@@ -2327,7 +3219,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fee2e2'
   },
   logoutMenuItemTitle: {
-    color: '#dc2626',
+    color: '#991B1B',
     fontWeight: '600'
   },
 
@@ -2905,5 +3797,459 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Create Group Modal Styles
+  fullScreenModal: {
+    flex: 1,
+    backgroundColor: '#FFFFFF'
+  },
+  createGroupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB'
+  },
+  createGroupBackButton: {
+    padding: 8,
+    borderRadius: 8
+  },
+  createGroupTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937'
+  },
+  createGroupNextButton: {
+    backgroundColor: '#991B1B',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8
+  },
+  createGroupNextButtonDisabled: {
+    backgroundColor: '#D1D5DB',
+    opacity: 0.6
+  },
+  createGroupNextButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600'
+  },
+  createGroupNextButtonTextDisabled: {
+    color: '#9CA3AF'
+  },
+  createGroupContent: {
+    flex: 1,
+    padding: 20
+  },
+  createGroupSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 20
+  },
+  selectedMembersContainer: {
+    marginBottom: 24
+  },
+  selectedMembersTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12
+  },
+  selectedMembersList: {
+    flexDirection: 'row',
+    paddingHorizontal: 4
+  },
+  selectedMemberItem: {
+    alignItems: 'center',
+    marginRight: 16,
+    position: 'relative'
+  },
+  selectedMemberAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginBottom: 4
+  },
+  selectedMemberName: {
+    fontSize: 12,
+    color: '#374151',
+    textAlign: 'center',
+    maxWidth: 60
+  },
+  removeMemberButton: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2
+  },
+  availableContactsList: {
+    flex: 1
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: '#F9FAFB'
+  },
+  contactItemSelected: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA'
+  },
+  contactInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1
+  },
+  contactAvatarContainer: {
+    position: 'relative',
+    marginRight: 12
+  },
+  contactAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20
+  },
+  onlineIndicatorShare: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#FFFFFF'
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1F2937'
+  },
+  selectionIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  selectionIndicatorSelected: {
+    backgroundColor: '#991B1B',
+    borderColor: '#991B1B'
+  },
+  groupNameInputContainer: {
+    marginBottom: 24
+  },
+  groupNameInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1F2937',
+    backgroundColor: '#FFFFFF'
+  },
+  characterCount: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'right',
+    marginTop: 4
+  },
+  groupPreview: {
+    marginTop: 24
+  },
+  groupPreviewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12
+  },
+  groupPreviewCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB'
+  },
+  groupPreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  groupPreviewAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12
+  },
+  groupPreviewInfo: {
+    flex: 1
+  },
+  groupPreviewName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2
+  },
+  groupPreviewMembers: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+
+  // Share Modal Styles
+  shareModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  shareModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 34, // Safe area padding
+  },
+  shareModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  shareModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  sharePostPreview: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  sharePostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sharePostAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  sharePostUserInfo: {
+    flex: 1,
+  },
+  sharePostUsername: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  sharePostTime: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  sharePostContent: {
+    fontSize: 15,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  shareOptionsContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  shareSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  shareOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  shareOptionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  shareOptionIconContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  shareFriendAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  shareOnlineIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  shareOptionText: {
+    flex: 1,
+  },
+  shareOptionTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  shareOptionSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+
+  // Advanced Share Modal Styles
+  shareModalSendButton: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#991B1B',
+  },
+  shareModalNextButton: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  shareSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  shareSearchIcon: {
+    marginRight: 12,
+  },
+  shareSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
+    paddingVertical: 8,
+  },
+  selectedProfilesContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  selectedProfileItem: {
+    alignItems: 'center',
+    marginRight: 16,
+    width: 70,
+  },
+  selectedProfileAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginBottom: 8,
+  },
+  selectedProfileRemove: {
+    position: 'absolute',
+    top: -2,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedProfileName: {
+    fontSize: 12,
+    color: '#1F2937',
+    textAlign: 'center',
+    maxWidth: 60,
+  },
+  profilesGridContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  profilesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+  },
+  profileGridItem: {
+    width: '23%',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  profileGridItemSelected: {
+    opacity: 0.8,
+  },
+  profileGridAvatarContainer: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  profileGridAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  profileGridOnlineIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  profileGridSelectedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 30,
+    backgroundColor: 'rgba(153, 27, 27, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileGridName: {
+    fontSize: 12,
+    color: '#1F2937',
+    textAlign: 'center',
+    maxWidth: 70,
   },
 });

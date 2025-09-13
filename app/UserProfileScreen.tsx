@@ -71,27 +71,12 @@ export default function UserProfileScreen() {
   const [user] = useState<User>(mockUser); // In real app, fetch based on params.userId
 
   const handleMessage = () => {
-    Alert.alert(
-      "Send Message",
-      `Start a conversation with ${user.name}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Send", onPress: () => {
-          // Navigate to chat screen
-          Alert.alert("Success", "Message sent!");
-        }}
-      ]
-    );
+    router.push(`/chat/${user.id}`);
   };
 
   const handleFollow = () => {
     setIsFollowing(!isFollowing);
-    Alert.alert(
-      isFollowing ? "Unfollowed" : "Following",
-      isFollowing 
-        ? `You are no longer following ${user.name}` 
-        : `You are now following ${user.name}`
-    );
+    // In real app, this would make API call to follow/unfollow user
   };
 
   const handleShare = async () => {
@@ -135,162 +120,150 @@ export default function UserProfileScreen() {
     });
   };
 
-  const renderHeader = () => (
-    <View style={styles.modernHeader}>
-      <TouchableOpacity 
-        style={styles.modernBackButton}
-        onPress={() => router.back()}
-      >
-        <Ionicons name="arrow-back" size={24} color="#991B1B" />
-      </TouchableOpacity>
-      <Text style={styles.modernHeaderTitle}>Profile</Text>
-      <View style={styles.headerActions}>
-        <TouchableOpacity style={styles.headerActionBtn} onPress={handleShare}>
-          <Ionicons name="share-outline" size={20} color="#991B1B" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerActionBtn}>
-          <Ionicons name="ellipsis-horizontal" size={20} color="#991B1B" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
-  const renderProfileInfo = () => (
-    <View style={styles.modernProfileSection}>
-      <View style={styles.modernAvatarContainer}>
-        <View style={styles.avatarGlow}>
-          <Image source={{ uri: user.avatar }} style={styles.modernAvatar} />
-        </View>
-        <View style={styles.verifiedBadge}>
-          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-        </View>
-      </View>
-      
-      <Text style={styles.modernUserName}>{user.name}</Text>
-      <Text style={styles.modernUserBio}>{user.bio}</Text>
-      
-      <View style={styles.modernInfoContainer}>
-        <View style={styles.infoItem}>
-          <Ionicons name="location" size={16} color="#991B1B" />
-          <Text style={styles.infoText}>{user.location}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Ionicons name="school" size={16} color="#991B1B" />
-          <Text style={styles.infoText}>{user.major} • {user.year}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Ionicons name="business" size={16} color="#991B1B" />
-          <Text style={styles.infoText}>{user.university}</Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderStats = () => (
-    <View style={styles.modernStatsContainer}>
-      <TouchableOpacity style={styles.modernStatItem} onPress={navigateToFollowers}>
-        <Text style={styles.modernStatNumber}>{user.followers}</Text>
-        <Text style={styles.modernStatLabel}>Followers</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.modernStatItem} onPress={navigateToFollowing}>
-        <Text style={styles.modernStatNumber}>{user.following}</Text>
-        <Text style={styles.modernStatLabel}>Following</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.modernStatItem}>
-        <Text style={styles.modernStatNumber}>{user.projects}</Text>
-        <Text style={styles.modernStatLabel}>Projects</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.modernStatItem}>
-        <Text style={styles.modernStatNumber}>{user.clubs}</Text>
-        <Text style={styles.modernStatLabel}>Clubs</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderActionButtons = () => (
-    <View style={styles.modernActionButtonsContainer}>
-      <TouchableOpacity 
-        style={styles.modernMessageButton}
-        onPress={handleMessage}
-      >
-        <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />
-        <Text style={styles.modernMessageButtonText}>Message</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.modernFollowButton, isFollowing && styles.modernFollowingButton]}
-        onPress={handleFollow}
-      >
-        <Ionicons 
-          name={isFollowing ? "heart" : "heart-outline"} 
-          size={20} 
-          color={isFollowing ? "#FFFFFF" : "#991B1B"} 
+  const renderProfileHeader = () => (
+    <View style={styles.profileHeader}>
+      <View style={styles.coverPhotoContainer}>
+        <Image
+          source={{ uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=2340&q=80' }}
+          style={styles.coverPhoto}
         />
-        <Text style={[styles.modernFollowButtonText, isFollowing && styles.modernFollowingButtonText]}>
-          {isFollowing ? "Following" : "Follow"}
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.moreActionsButton}>
-        <Ionicons name="ellipsis-horizontal" size={20} color="#991B1B" />
-      </TouchableOpacity>
+        <View style={styles.floatingHeaderButtons}>
+          <TouchableOpacity 
+            style={styles.floatingButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.floatingButton} onPress={handleShare}>
+            <Ionicons name="share-outline" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.profileCard}>
+        <View style={styles.profileImageContainer}>
+          <Image 
+            source={{ uri: user.avatar }} 
+            style={styles.profileImage}
+            defaultSource={require('../assets/images/icon.png')}
+          />
+          <View style={styles.verifiedBadge}>
+            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+          </View>
+        </View>
+        
+        <Text style={styles.profileName}>{user.name}</Text>
+        <Text style={styles.profileHandle}>@{user.name.toLowerCase().replace(' ', '_')}</Text>
+        <View style={styles.locationContainer}>
+          <Ionicons name="location-outline" size={14} color="#7f1d1d" />
+          <Text style={styles.profileLocation}>{user.university}</Text>
+        </View>
+        <View style={styles.joinedContainer}>
+          <Ionicons name="calendar-outline" size={14} color="#7f1d1d" />
+          <Text style={styles.joinedText}>{user.major} • {user.year}</Text>
+        </View>
+        
+        <Text style={styles.bioText}>{user.bio}</Text>
+
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.messageBtn} onPress={handleMessage}>
+            <Ionicons name="chatbubble-ellipses" size={16} color="#FFFFFF" />
+            <Text style={styles.messageBtnText}>Message</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.followBtn, isFollowing && styles.followingBtn]} 
+            onPress={handleFollow}
+          >
+            <Ionicons 
+              name={isFollowing ? "heart" : "heart-outline"} 
+              size={16} 
+              color={isFollowing ? "#FFFFFF" : "#8B1A1A"} 
+            />
+            <Text style={[styles.followBtnText, isFollowing && styles.followingBtnText]}>
+              {isFollowing ? "Following" : "Follow"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.statsContainer}>
+          <TouchableOpacity style={styles.statItem} onPress={navigateToFollowers}>
+            <Text style={styles.statNumber}>{user.followers}</Text>
+            <Text style={styles.statLabel}>Followers</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statItem} onPress={navigateToFollowing}>
+            <Text style={styles.statNumber}>{user.following}</Text>
+            <Text style={styles.statLabel}>Following</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statItem}>
+            <Text style={styles.statNumber}>{user.projects}</Text>
+            <Text style={styles.statLabel}>Projects</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statItem}>
+            <Text style={styles.statNumber}>{user.clubs}</Text>
+            <Text style={styles.statLabel}>Clubs</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 
-  const renderSkills = () => (
-    <View style={styles.modernSection}>
-      <View style={styles.modernSectionHeader}>
-        <Text style={styles.modernSectionTitle}>Skills & Expertise</Text>
-        <TouchableOpacity>
-          <Ionicons name="add-circle-outline" size={20} color="#991B1B" />
-        </TouchableOpacity>
+
+
+  const renderContent = () => (
+    <View style={styles.contentContainer}>
+      {/* Skills Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Skills</Text>
+        <View style={styles.skillsContainer}>
+          {user.skills.map((skill, index) => (
+            <TouchableOpacity key={index} style={styles.skillChip}>
+              <Text style={styles.skillText}>{skill}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-      <View style={styles.modernSkillsContainer}>
-        {user.skills.map((skill, index) => (
-          <TouchableOpacity key={index} style={styles.modernSkillChip}>
-            <Text style={styles.modernSkillText}>{skill}</Text>
-            <View style={styles.skillLevel}>
-              <View style={[styles.skillLevelFill, { width: `${Math.random() * 40 + 60}%` }]} />
-            </View>
+
+      {/* Achievements Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Achievements</Text>
+        <View style={styles.achievementsGrid}>
+          {user.achievements.map((achievement, index) => (
+            <TouchableOpacity key={index} style={styles.achievementCard}>
+              <View style={styles.achievementIcon}>
+                <Ionicons name={achievement.icon as any} size={24} color="#8B1A1A" />
+              </View>
+              <Text style={styles.achievementTitle}>{achievement.title}</Text>
+              <Text style={styles.achievementSubtitle}>{achievement.subtitle}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Contact Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Contact</Text>
+        <View style={styles.contactContainer}>
+          <TouchableOpacity style={styles.contactItem}>
+            <Ionicons name="mail-outline" size={16} color="#8B1A1A" />
+            <Text style={styles.contactText}>{user.email}</Text>
           </TouchableOpacity>
-        ))}
+          <TouchableOpacity style={styles.contactItem}>
+            <Ionicons name="location-outline" size={16} color="#8B1A1A" />
+            <Text style={styles.contactText}>{user.location}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 
-  const renderAchievements = () => (
-    <View style={styles.modernSection}>
-      <View style={styles.modernSectionHeader}>
-        <Text style={styles.modernSectionTitle}>Achievements</Text>
-        <TouchableOpacity>
-          <Text style={styles.viewAllText}>View All</Text>
-        </TouchableOpacity>
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.achievementsScroll}>
-        {user.achievements.map((achievement, index) => (
-          <TouchableOpacity key={index} style={styles.modernAchievementCard}>
-            <View style={styles.modernAchievementIcon}>
-              <Ionicons name={achievement.icon as any} size={28} color="#991B1B" />
-            </View>
-            <Text style={styles.modernAchievementTitle}>{achievement.title}</Text>
-            <Text style={styles.modernAchievementSubtitle}>{achievement.subtitle}</Text>
-            <View style={styles.achievementGlow} />
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fef2f2" translucent={true} />
-      {renderHeader()}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {renderProfileInfo()}
-        {renderStats()}
-        {renderActionButtons()}
-        {renderSkills()}
-        {renderAchievements()}
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
+      <ScrollView style={styles.mainScrollView} showsVerticalScrollIndicator={false}>
+        {renderProfileHeader()}
+        {renderContent()}
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
@@ -302,75 +275,183 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fef2f2',
   },
-  
-  // Modern Header Styles
-  modernHeader: {
+  mainScrollView: {
+    flex: 1,
+  },
+  profileHeader: {
+    backgroundColor: '#FFFFFF',
+  },
+  coverPhotoContainer: {
+    height: 200,
+    position: 'relative',
+  },
+  coverPhoto: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  floatingHeaderButtons: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#991B1B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
   },
-  modernBackButton: {
-    padding: 8,
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
-  },
-  modernHeaderTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#991B1B',
-    letterSpacing: -0.5,
-  },
-  headerActions: {
-    flexDirection: 'row',
+  floatingButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  headerActionBtn: {
-    marginLeft: 12,
-    padding: 8,
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
-  },
-
-  // Modern Profile Section
-  modernProfileSection: {
+  profileCard: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
+    borderRadius: 16,
+    padding: 24,
     alignItems: 'center',
-    marginBottom: 16,
     shadowColor: '#991B1B',
-    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 4,
-  },
-  modernAvatarContainer: {
-    position: 'relative',
-    marginBottom: 20,
-  },
-  avatarGlow: {
-    position: 'relative',
-  },
-  modernAvatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
-    borderColor: '#991B1B',
-    shadowColor: '#991B1B',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    elevation: 4,
+    marginTop: -60,
+    marginHorizontal: 20,
+    zIndex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(127, 29, 29, 0.1)',
+  },
+  profileImageContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#F3F4F6',
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000000',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  profileHandle: {
+    fontSize: 16,
+    color: '#666666',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  profileLocation: {
+    fontSize: 14,
+    color: '#7f1d1d',
+    marginLeft: 6,
+  },
+  joinedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  joinedText: {
+    fontSize: 14,
+    color: '#7f1d1d',
+    marginLeft: 6,
+  },
+  bioText: {
+    fontSize: 16,
+    color: '#374151',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  messageBtn: {
+    backgroundColor: '#991B1B',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  messageBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  followBtn: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#8B1A1A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  followingBtn: {
+    backgroundColor: '#991B1B',
+    borderColor: '#8B1A1A',
+  },
+  followBtnText: {
+    color: '#8B1A1A',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  followingBtnText: {
+    color: '#FFFFFF',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000000',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666666',
+    fontWeight: '500',
+  },
+  contentContainer: {
+    paddingHorizontal: 20,
+  },
+  contactContainer: {
+    gap: 12,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  contactText: {
+    fontSize: 14,
+    color: '#374151',
+    marginLeft: 12,
   },
   verifiedBadge: {
     position: 'absolute',
@@ -390,270 +471,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  modernUserName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 12,
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  modernUserBio: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  modernInfoContainer: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 26, 26, 0.2)',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#374151',
-    marginLeft: 8,
-    fontWeight: '500',
-  },
-
-  // Modern Stats
-  modernStatsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#991B1B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  modernStatItem: {
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 16,
-    backgroundColor: '#fef2f2',
-    minWidth: 70,
-  },
-  modernStatNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#991B1B',
-    marginBottom: 4,
-  },
-  modernStatLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-
-  // Modern Action Buttons
-  modernActionButtonsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#FFFFFF',
-    gap: 12,
-    marginBottom: 16,
-    shadowColor: '#991B1B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  modernMessageButton: {
-    flex: 1,
-    backgroundColor: '#991B1B',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#991B1B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  modernMessageButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modernFollowButton: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#991B1B',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  modernFollowingButton: {
-    backgroundColor: '#991B1B',
-    borderColor: '#991B1B',
-  },
-  modernFollowButtonText: {
-    color: '#991B1B',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modernFollowingButtonText: {
-    color: '#FFFFFF',
-  },
-  moreActionsButton: {
-    padding: 16,
-    backgroundColor: '#fef2f2',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#991B1B',
-  },
-
-  // Modern Sections
-  modernSection: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#991B1B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  modernSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modernSectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    letterSpacing: -0.3,
-  },
-  viewAllText: {
-    fontSize: 14,
-    color: '#991B1B',
-    fontWeight: '600',
-  },
-
-  // Modern Skills
-  modernSkillsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  modernSkillChip: {
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#991B1B',
-    minWidth: (width - 80) / 2,
-    alignItems: 'center',
-  },
-  modernSkillText: {
-    fontSize: 14,
-    color: '#991B1B',
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  skillLevel: {
-    width: '100%',
-    height: 4,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  skillLevelFill: {
-    height: '100%',
-    backgroundColor: '#991B1B',
-    borderRadius: 2,
-  },
-
-  // Modern Achievements
-  achievementsScroll: {
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
-  },
-  modernAchievementCard: {
-    backgroundColor: '#fef2f2',
-    padding: 20,
-    borderRadius: 20,
-    alignItems: 'center',
-    width: 160,
-    marginRight: 16,
-    borderWidth: 1,
-    borderColor: '#991B1B',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  modernAchievementIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#991B1B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  modernAchievementTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  modernAchievementSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  achievementGlow: {
-    position: 'absolute',
-    top: -20,
-    right: -20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(139, 26, 26, 0.1)',
-  },
-
   bottomSpacing: {
     height: 40,
-  },
-  scrollView: {
-    flex: 1,
   },
   section: {
     backgroundColor: '#FFFFFF',

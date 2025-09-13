@@ -25,7 +25,7 @@ interface Document {
 }
 
 export default function CreateScreen() {
-  const [postType, setPostType] = useState<'post' | 'event' | 'project' | 'survey'>('post');
+  const [postType, setPostType] = useState<'post' | 'project' | 'survey'>('post');
   const [postText, setPostText] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -44,11 +44,6 @@ export default function CreateScreen() {
   // Survey specific states
   const [isAnonymous, setIsAnonymous] = useState(false);
   
-  // Event specific states
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventDate, setEventDate] = useState('');
-  const [eventTime, setEventTime] = useState('');
-  const [eventLocation, setEventLocation] = useState('');
   
   // Project specific states
   const [projectTitle, setProjectTitle] = useState('');
@@ -89,42 +84,6 @@ export default function CreateScreen() {
     return errors;
   };
 
-  const validateEvent = () => {
-    const errors: {[key: string]: string} = {};
-    
-    if (!eventTitle.trim()) {
-      errors.eventTitle = 'Event title is required';
-    } else if (eventTitle.trim().length < 3) {
-      errors.eventTitle = 'Event title must be at least 3 characters';
-    }
-    
-    if (!postText.trim()) {
-      errors.postText = 'Event description is required';
-    } else if (postText.trim().length < 20) {
-      errors.postText = 'Event description must be at least 20 characters';
-    }
-    
-    if (!eventDate.trim()) {
-      errors.eventDate = 'Event date is required';
-    } else {
-      const selectedDate = new Date(eventDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (selectedDate < today) {
-        errors.eventDate = 'Event date cannot be in the past';
-      }
-    }
-    
-    if (!eventTime.trim()) {
-      errors.eventTime = 'Event time is required';
-    }
-    
-    if (!eventLocation.trim()) {
-      errors.eventLocation = 'Event location is required';
-    }
-    
-    return errors;
-  };
 
   const validateProject = () => {
     const errors: {[key: string]: string} = {};
@@ -185,9 +144,6 @@ export default function CreateScreen() {
     switch (postType) {
       case 'post':
         errors = validatePost();
-        break;
-      case 'event':
-        errors = validateEvent();
         break;
       case 'project':
         errors = validateProject();
@@ -336,10 +292,6 @@ export default function CreateScreen() {
     setPollQuestion('');
     setPollOptions(['', '']);
     setAttachedDocuments([]);
-    setEventTitle('');
-    setEventDate('');
-    setEventTime('');
-    setEventLocation('');
     setProjectTitle('');
     setProjectDescription('');
     setProjectDuration('');
@@ -390,8 +342,6 @@ export default function CreateScreen() {
         return postText.trim().length > 0 || images.length > 0;
       case 'survey':
         return postText.trim().length > 0;
-      case 'event':
-        return eventTitle.trim().length > 0 && postText.trim().length > 0 && eventDate.trim().length > 0;
       case 'project':
         return projectTitle.trim().length > 0 && projectDescription.trim().length > 0;
       default:
@@ -413,21 +363,21 @@ export default function CreateScreen() {
           style={[styles.postButton, !isPostButtonEnabled && styles.postButtonDisabled]}
         >
           <Text style={[styles.postButtonText, !isPostButtonEnabled && styles.postButtonTextDisabled]}>
-            {postType === 'post' ? 'Post' : postType === 'event' ? 'Create Event' : postType === 'project' ? 'Create Project' : 'Create Survey'}
+            {postType === 'post' ? 'Post' : postType === 'project' ? 'Create Project' : 'Create Survey'}
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Post Type Toggle */}
       <View style={styles.postTypeContainer}>
-        {(['post', 'event', 'project', 'survey'] as const).map((type) => (
+        {(['post', 'project', 'survey'] as const).map((type) => (
           <TouchableOpacity
             key={type}
             style={[styles.postTypeButton, postType === type && styles.postTypeButtonActive]}
             onPress={() => setPostType(type)}
           >
             <Ionicons 
-              name={type === 'post' ? 'chatbubble-outline' : type === 'event' ? 'calendar-outline' : type === 'project' ? 'briefcase-outline' : 'bar-chart-outline'} 
+              name={type === 'post' ? 'chatbubble-outline' : type === 'project' ? 'briefcase-outline' : 'bar-chart-outline'} 
               size={20} 
               color={postType === type ? '#FFFFFF' : '#991B1B'} 
             />
@@ -507,72 +457,6 @@ export default function CreateScreen() {
           </View>
         )}
 
-        {postType === 'event' && (
-          <View>
-            <TextInput
-              style={[styles.inputField, validationErrors.eventTitle && styles.inputError]}
-              placeholder="Event Title"
-              placeholderTextColor="#999"
-              value={eventTitle}
-              onChangeText={setEventTitle}
-            />
-            {validationErrors.eventTitle && (
-              <Text style={styles.errorText}>{validationErrors.eventTitle}</Text>
-            )}
-            
-            <TextInput
-              style={[styles.textInput, validationErrors.postText && styles.inputError]}
-              placeholder="Event Description"
-              placeholderTextColor="#999"
-              value={postText}
-              onChangeText={setPostText}
-              multiline
-              textAlignVertical="top"
-            />
-            {validationErrors.postText && (
-              <Text style={styles.errorText}>{validationErrors.postText}</Text>
-            )}
-            
-            <View style={styles.eventDetailsContainer}>
-              <View style={{ flex: 1 }}>
-                <TextInput
-                  style={[styles.halfInputField, validationErrors.eventDate && styles.inputError]}
-                  placeholder="Date (MM/DD/YYYY)"
-                  placeholderTextColor="#999"
-                  value={eventDate}
-                  onChangeText={setEventDate}
-                />
-                {validationErrors.eventDate && (
-                  <Text style={styles.errorText}>{validationErrors.eventDate}</Text>
-                )}
-              </View>
-              
-              <View style={{ flex: 1 }}>
-                <TextInput
-                  style={[styles.halfInputField, validationErrors.eventTime && styles.inputError]}
-                  placeholder="Time"
-                  placeholderTextColor="#999"
-                  value={eventTime}
-                  onChangeText={setEventTime}
-                />
-                {validationErrors.eventTime && (
-                  <Text style={styles.errorText}>{validationErrors.eventTime}</Text>
-                )}
-              </View>
-            </View>
-            
-            <TextInput
-              style={[styles.inputField, validationErrors.eventLocation && styles.inputError]}
-              placeholder="Event Location"
-              placeholderTextColor="#999"
-              value={eventLocation}
-              onChangeText={setEventLocation}
-            />
-            {validationErrors.eventLocation && (
-              <Text style={styles.errorText}>{validationErrors.eventLocation}</Text>
-            )}
-          </View>
-        )}
 
         {/* Image Preview */}
         {images.length > 0 && (
@@ -1343,11 +1227,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     flex: 1,
-  },
-  eventDetailsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
   },
   projectDetailsContainer: {
     flexDirection: 'row',

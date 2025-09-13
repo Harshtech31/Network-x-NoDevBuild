@@ -18,10 +18,10 @@ import {
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const COLLABORATION_TYPES = ['Research', 'Business', 'Creative', 'Technical', 'Academic', 'Social Impact', 'Innovation', 'Startup'];
-const COLLABORATION_SKILLS = ['Leadership', 'Communication', 'Technical Writing', 'Design', 'Development', 'Marketing', 'Finance', 'Strategy'];
-const COLLABORATION_DURATION = ['1-3 months', '3-6 months', '6-12 months', '1+ years', 'Ongoing'];
-const COMMITMENT_LEVELS = ['Part-time', 'Full-time', 'Flexible', 'Weekend only'];
+const GROUP_CATEGORIES = ['Study Group', 'Project Team', 'Research Circle', 'Social Club', 'Academic', 'Professional', 'Creative', 'Sports'];
+const GROUP_PRIVACY = ['Public', 'Private', 'Invite Only'];
+const GROUP_SIZE = ['Small (5-15)', 'Medium (16-30)', 'Large (31-50)', 'Extra Large (50+)'];
+const MEETING_FREQUENCY = ['Daily', 'Weekly', 'Bi-weekly', 'Monthly', 'As Needed'];
 
 const SAMPLE_IMAGES = [
   'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400',
@@ -30,19 +30,18 @@ const SAMPLE_IMAGES = [
   'https://images.unsplash.com/photo-1515378791036-0648a814c963?w=400',
 ];
 
-export default function CreateCollaborationScreen() {
+export default function CreateGroupScreen() {
   const router = useRouter();
-  const [collaborationTitle, setCollaborationTitle] = useState('');
-  const [collaborationDescription, setCollaborationDescription] = useState('');
-  const [collaborationGoals, setCollaborationGoals] = useState('');
-  const [selectedType, setSelectedType] = useState('');
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [selectedDuration, setSelectedDuration] = useState('');
-  const [selectedCommitment, setSelectedCommitment] = useState('');
-  const [lookingFor, setLookingFor] = useState('');
-  const [requirements, setRequirements] = useState('');
-  const [benefits, setBenefits] = useState('');
-  const [location, setLocation] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');
+  const [groupPurpose, setGroupPurpose] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedPrivacy, setSelectedPrivacy] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
+  const [selectedFrequency, setSelectedFrequency] = useState('');
+  const [meetingLocation, setMeetingLocation] = useState('');
+  const [groupRules, setGroupRules] = useState('');
+  const [expectations, setExpectations] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
@@ -51,20 +50,14 @@ export default function CreateCollaborationScreen() {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
-  const isCreateButtonEnabled = collaborationTitle.trim().length > 0 && collaborationDescription.trim().length > 0 && selectedType;
+  const isCreateButtonEnabled = groupName.trim().length > 0 && groupDescription.trim().length > 0 && selectedCategory && selectedPrivacy;
 
   const selectImage = (imageUrl: string) => {
     setImage(imageUrl);
     setShowImagePicker(false);
   };
 
-  const toggleSkill = (skill: string) => {
-    setSelectedSkills(prev => 
-      prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
-    );
-  };
-
-  const handleCreateCollaboration = () => {
+  const handleCreateGroup = () => {
     setShowSuccessAnimation(true);
     
     // Start animations
@@ -108,8 +101,8 @@ export default function CreateCollaborationScreen() {
           style={styles.coverGradient}
         >
           <View style={styles.headerContent}>
-            <Text style={styles.coverHeaderTitle}>Find Your Perfect Team</Text>
-            <Text style={styles.coverHeaderSubtitle}>Connect with talented individuals who share your vision and passion for innovation</Text>
+            <Text style={styles.coverHeaderTitle}>Build Your Community</Text>
+            <Text style={styles.coverHeaderSubtitle}>Create a space where like-minded individuals can connect, learn, and grow together</Text>
           </View>
         </LinearGradient>
       </View>
@@ -121,11 +114,11 @@ export default function CreateCollaborationScreen() {
             <Image source={{ uri: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' }} style={styles.avatar} />
             <View>
               <Text style={styles.userName}>John Doe</Text>
-              <Text style={styles.userRole}>Collaboration Initiator</Text>
+              <Text style={styles.userRole}>Group Creator</Text>
             </View>
           </View>
 
-          {/* Collaboration Image */}
+          {/* Group Image */}
           {image && (
             <View style={styles.imagePreviewContainer}>
               <Image source={{ uri: image }} style={styles.imagePreview} />
@@ -135,14 +128,14 @@ export default function CreateCollaborationScreen() {
             </View>
           )}
 
-          {/* Collaboration Title */}
+          {/* Group Name */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Collaboration Title *</Text>
+            <Text style={styles.inputLabel}>Group Name *</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="Enter collaboration title"
-              value={collaborationTitle}
-              onChangeText={setCollaborationTitle}
+              placeholder="Enter group name"
+              value={groupName}
+              onChangeText={setGroupName}
             />
           </View>
 
@@ -151,40 +144,40 @@ export default function CreateCollaborationScreen() {
             <Text style={styles.inputLabel}>Description *</Text>
             <TextInput
               style={[styles.textInput, styles.longTextInput]}
-              placeholder="Describe what you want to collaborate on"
-              value={collaborationDescription}
-              onChangeText={setCollaborationDescription}
+              placeholder="Describe what your group is about"
+              value={groupDescription}
+              onChangeText={setGroupDescription}
               multiline
               numberOfLines={3}
             />
           </View>
 
-          {/* Goals & Objectives */}
+          {/* Purpose & Goals */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Goals & Objectives</Text>
+            <Text style={styles.inputLabel}>Purpose & Goals</Text>
             <TextInput
               style={[styles.textInput, styles.longTextInput]}
-              placeholder="What do you hope to achieve through this collaboration?"
-              value={collaborationGoals}
-              onChangeText={setCollaborationGoals}
+              placeholder="What do you hope to achieve with this group?"
+              value={groupPurpose}
+              onChangeText={setGroupPurpose}
               multiline
               numberOfLines={3}
             />
           </View>
 
-          {/* Type Selection */}
+          {/* Category Selection */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Collaboration Type *</Text>
+            <Text style={styles.inputLabel}>Group Category *</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-              <View style={styles.typeContainer}>
-                {COLLABORATION_TYPES.map(type => (
+              <View style={styles.categoryContainer}>
+                {GROUP_CATEGORIES.map(category => (
                   <TouchableOpacity 
-                    key={type} 
-                    style={[styles.typeChip, selectedType === type && styles.typeChipSelected]}
-                    onPress={() => setSelectedType(type)}
+                    key={category} 
+                    style={[styles.categoryChip, selectedCategory === category && styles.categoryChipSelected]}
+                    onPress={() => setSelectedCategory(category)}
                   >
-                    <Text style={[styles.typeText, selectedType === type && styles.typeTextSelected]}>
-                      {type}
+                    <Text style={[styles.categoryText, selectedCategory === category && styles.categoryTextSelected]}>
+                      {category}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -192,37 +185,39 @@ export default function CreateCollaborationScreen() {
             </ScrollView>
           </View>
 
-          {/* Skills Needed */}
+          {/* Privacy Setting */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Skills Needed</Text>
-            <View style={styles.skillsContainer}>
-              {COLLABORATION_SKILLS.map(skill => (
-                <TouchableOpacity 
-                  key={skill} 
-                  style={[styles.skillChip, selectedSkills.includes(skill) && styles.skillChipSelected]}
-                  onPress={() => toggleSkill(skill)}
-                >
-                  <Text style={[styles.skillText, selectedSkills.includes(skill) && styles.skillTextSelected]}>
-                    {skill}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={styles.inputLabel}>Privacy Setting *</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+              <View style={styles.privacyContainer}>
+                {GROUP_PRIVACY.map(privacy => (
+                  <TouchableOpacity 
+                    key={privacy} 
+                    style={[styles.privacyChip, selectedPrivacy === privacy && styles.privacyChipSelected]}
+                    onPress={() => setSelectedPrivacy(privacy)}
+                  >
+                    <Text style={[styles.privacyText, selectedPrivacy === privacy && styles.privacyTextSelected]}>
+                      {privacy}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
           </View>
 
-          {/* Duration */}
+          {/* Group Size */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Duration</Text>
+            <Text style={styles.inputLabel}>Expected Group Size</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.durationContainer}>
-                {COLLABORATION_DURATION.map(duration => (
+              <View style={styles.sizeContainer}>
+                {GROUP_SIZE.map(size => (
                   <TouchableOpacity 
-                    key={duration} 
-                    style={[styles.durationChip, selectedDuration === duration && styles.durationChipSelected]}
-                    onPress={() => setSelectedDuration(duration)}
+                    key={size} 
+                    style={[styles.sizeChip, selectedSize === size && styles.sizeChipSelected]}
+                    onPress={() => setSelectedSize(size)}
                   >
-                    <Text style={[styles.durationText, selectedDuration === duration && styles.durationTextSelected]}>
-                      {duration}
+                    <Text style={[styles.sizeText, selectedSize === size && styles.sizeTextSelected]}>
+                      {size}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -230,71 +225,58 @@ export default function CreateCollaborationScreen() {
             </ScrollView>
           </View>
 
-          {/* Location (Optional) */}
+          {/* Meeting Frequency */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Location <Text style={styles.optionalText}>(Optional)</Text></Text>
+            <Text style={styles.inputLabel}>Meeting Frequency</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+              <View style={styles.frequencyContainer}>
+                {MEETING_FREQUENCY.map(frequency => (
+                  <TouchableOpacity 
+                    key={frequency} 
+                    style={[styles.frequencyChip, selectedFrequency === frequency && styles.frequencyChipSelected]}
+                    onPress={() => setSelectedFrequency(frequency)}
+                  >
+                    <Text style={[styles.frequencyText, selectedFrequency === frequency && styles.frequencyTextSelected]}>
+                      {frequency}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* Meeting Location */}
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>Meeting Location <Text style={styles.optionalText}>(Optional)</Text></Text>
             <TextInput
               style={styles.textInput}
-              placeholder="e.g., Remote, Hybrid, On-campus, Specific building/room"
-              value={location}
-              onChangeText={setLocation}
+              placeholder="e.g., Library Room 201, Online via Zoom, Campus Café"
+              value={meetingLocation}
+              onChangeText={setMeetingLocation}
             />
           </View>
 
-          {/* Commitment Level */}
+          {/* Group Rules */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Commitment Level</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-              <View style={styles.commitmentContainer}>
-                {COMMITMENT_LEVELS.map(commitment => (
-                  <TouchableOpacity 
-                    key={commitment} 
-                    style={[styles.commitmentChip, selectedCommitment === commitment && styles.commitmentChipSelected]}
-                    onPress={() => setSelectedCommitment(commitment)}
-                  >
-                    <Text style={[styles.commitmentText, selectedCommitment === commitment && styles.commitmentTextSelected]}>
-                      {commitment}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-
-          {/* Looking For */}
-          <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Looking For</Text>
+            <Text style={styles.inputLabel}>Group Rules & Guidelines</Text>
             <TextInput
               style={[styles.textInput, styles.longTextInput]}
-              placeholder="Describe the type of collaborators you're seeking"
-              value={lookingFor}
-              onChangeText={setLookingFor}
+              placeholder="Set clear expectations and rules for group members"
+              value={groupRules}
+              onChangeText={setGroupRules}
               multiline
               numberOfLines={2}
             />
           </View>
 
-          {/* Requirements */}
+          {/* Member Expectations */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Requirements</Text>
+            <Text style={styles.inputLabel}>What We Expect From Members</Text>
             <TextInput
               style={[styles.textInput, styles.longTextInput]}
-              placeholder="Any specific requirements or qualifications"
-              value={requirements}
-              onChangeText={setRequirements}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
-
-          {/* Benefits */}
-          <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>What's In It For Collaborators</Text>
-            <TextInput
-              style={[styles.textInput, styles.longTextInput]}
-              placeholder="What benefits, learning opportunities, or rewards can collaborators expect?"
-              value={benefits}
-              onChangeText={setBenefits}
+              placeholder="Describe what kind of commitment and participation you expect"
+              value={expectations}
+              onChangeText={setExpectations}
               multiline
               numberOfLines={3}
             />
@@ -304,18 +286,18 @@ export default function CreateCollaborationScreen() {
           <View style={styles.mediaSection}>
             <TouchableOpacity style={styles.mediaButton} onPress={() => setShowImagePicker(true)}>
               <Ionicons name="image-outline" size={24} color="#991B1B" />
-              <Text style={styles.mediaButtonText}>Add Collaboration Image</Text>
+              <Text style={styles.mediaButtonText}>Add Group Image</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Post Collaboration Button */}
+          {/* Create Group Button */}
           <View style={styles.postButtonContainer}>
             <TouchableOpacity 
-              style={[styles.postCollaborationButton, !isCreateButtonEnabled && styles.postButtonDisabled]} 
+              style={[styles.createGroupButton, !isCreateButtonEnabled && styles.postButtonDisabled]} 
               disabled={!isCreateButtonEnabled}
-              onPress={handleCreateCollaboration}
+              onPress={handleCreateGroup}
             >
-              <Text style={styles.postButtonText}>Post Collaboration</Text>
+              <Text style={styles.postButtonText}>Create Group</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -328,7 +310,7 @@ export default function CreateCollaborationScreen() {
             <TouchableOpacity onPress={() => setShowImagePicker(false)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Choose Collaboration Image</Text>
+            <Text style={styles.modalTitle}>Choose Group Image</Text>
             <View style={{ width: 60 }} />
           </View>
           <FlatList
@@ -360,12 +342,12 @@ export default function CreateCollaborationScreen() {
               }
             ]}
           >
-            <LinearGradient colors={['#DC2626', '#EF4444']} style={styles.successGradient}>
+            <LinearGradient colors={['#7f1d1d', '#991B1B']} style={styles.successGradient}>
               <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
                 <Ionicons name="checkmark-circle" size={60} color="white" />
               </Animated.View>
-              <Text style={styles.successTitle}>Collaboration Created!</Text>
-              <Text style={styles.successMessage}>Your collaboration opportunity has been posted successfully</Text>
+              <Text style={styles.successTitle}>Group Created!</Text>
+              <Text style={styles.successMessage}>Your group has been created successfully and is ready for members</Text>
             </LinearGradient>
           </Animated.View>
         </View>
@@ -387,21 +369,6 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     paddingHorizontal: 20,
   },
-  floatingHeaderButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  floatingButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
   headerContent: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -420,8 +387,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  createButton: { backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-  createButtonDisabled: { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.1)' },
   scrollView: { 
     flex: 1,
     backgroundColor: '#fff7ed',
@@ -450,49 +415,34 @@ const styles = StyleSheet.create({
   textInput: { backgroundColor: '#FFFFFF', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(153, 27, 27, 0.2)', fontSize: 16, color: '#374151' },
   longTextInput: { minHeight: 100, textAlignVertical: 'top' },
   horizontalScroll: { marginTop: 8 },
-  typeContainer: { flexDirection: 'row', paddingRight: 20 },
-  typeChip: { backgroundColor: '#fef2f2', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: '#991B1B' },
-  typeChipSelected: { backgroundColor: '#991B1B' },
-  typeText: { color: '#991B1B', fontWeight: '500' },
-  typeTextSelected: { color: '#FFFFFF' },
-  skillsContainer: { flexDirection: 'row', flexWrap: 'wrap' },
-  skillChip: { backgroundColor: '#F9FAFB', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: '#D1D5DB' },
-  skillChipSelected: { backgroundColor: '#991B1B', borderColor: '#991B1B' },
-  skillText: { color: '#6B7280', fontWeight: '500', fontSize: 14 },
-  skillTextSelected: { color: '#FFFFFF' },
-  detailsRow: { marginBottom: 20 },
-  detailItem: { flex: 1 },
-  durationContainer: { flexDirection: 'row', paddingRight: 20 },
-  durationChip: { backgroundColor: '#fef2f2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 8, borderWidth: 1, borderColor: '#991B1B' },
-  durationChipSelected: { backgroundColor: '#991B1B' },
-  durationText: { color: '#991B1B', fontWeight: '500', fontSize: 12 },
-  durationTextSelected: { color: '#FFFFFF' },
-  commitmentContainer: { flexDirection: 'row', paddingRight: 20 },
-  commitmentChip: { backgroundColor: '#fef2f2', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: '#991B1B' },
-  commitmentChipSelected: { backgroundColor: '#991B1B' },
-  commitmentText: { color: '#991B1B', fontWeight: '500' },
-  commitmentTextSelected: { color: '#FFFFFF' },
+  categoryContainer: { flexDirection: 'row', paddingRight: 20 },
+  categoryChip: { backgroundColor: '#fef2f2', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: '#991B1B' },
+  categoryChipSelected: { backgroundColor: '#991B1B' },
+  categoryText: { color: '#991B1B', fontWeight: '500' },
+  categoryTextSelected: { color: '#FFFFFF' },
+  privacyContainer: { flexDirection: 'row', paddingRight: 20 },
+  privacyChip: { backgroundColor: '#fef2f2', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: '#991B1B' },
+  privacyChipSelected: { backgroundColor: '#991B1B' },
+  privacyText: { color: '#991B1B', fontWeight: '500' },
+  privacyTextSelected: { color: '#FFFFFF' },
+  sizeContainer: { flexDirection: 'row', paddingRight: 20 },
+  sizeChip: { backgroundColor: '#fef2f2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 8, borderWidth: 1, borderColor: '#991B1B' },
+  sizeChipSelected: { backgroundColor: '#991B1B' },
+  sizeText: { color: '#991B1B', fontWeight: '500', fontSize: 12 },
+  sizeTextSelected: { color: '#FFFFFF' },
+  frequencyContainer: { flexDirection: 'row', paddingRight: 20 },
+  frequencyChip: { backgroundColor: '#fef2f2', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: '#991B1B' },
+  frequencyChipSelected: { backgroundColor: '#991B1B' },
+  frequencyText: { color: '#991B1B', fontWeight: '500' },
+  frequencyTextSelected: { color: '#FFFFFF' },
   mediaSection: { marginBottom: 30 },
   mediaButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', padding: 16, borderRadius: 12, borderWidth: 2, borderColor: '#991B1B', borderStyle: 'dashed' },
   mediaButtonText: { marginLeft: 8, fontSize: 16, color: '#991B1B', fontWeight: '500' },
-  modalContainer: { flex: 1, backgroundColor: 'white' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  modalCancelText: { fontSize: 16, color: '#991B1B', fontWeight: '500' },
-  modalTitle: { fontSize: 18, fontWeight: '600', color: '#374151' },
-  imageGrid: { padding: 20 },
-  imageOption: { flex: 1, margin: 8, aspectRatio: 1, borderRadius: 12, overflow: 'hidden' },
-  imageOptionPreview: { width: '100%', height: '100%' },
-  successOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  successContainer: { margin: 40, borderRadius: 20, overflow: 'hidden' },
-  successGradient: { paddingVertical: 40, paddingHorizontal: 30, alignItems: 'center' },
-  successTitle: { fontSize: 24, fontWeight: 'bold', color: 'white', marginTop: 16, marginBottom: 8 },
-  successMessage: { fontSize: 16, color: 'rgba(255,255,255,0.9)', textAlign: 'center' },
-  optionalText: { fontSize: 14, color: '#9CA3AF', fontWeight: '400' },
   postButtonContainer: {
     marginTop: 30,
     marginBottom: 20,
   },
-  postCollaborationButton: {
+  createGroupButton: {
     backgroundColor: '#991B1B',
     paddingVertical: 16,
     paddingHorizontal: 32,
@@ -514,4 +464,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
+  optionalText: { fontSize: 14, color: '#9CA3AF', fontWeight: '400' },
+  modalContainer: { flex: 1, backgroundColor: 'white' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  modalCancelText: { fontSize: 16, color: '#991B1B', fontWeight: '500' },
+  modalTitle: { fontSize: 18, fontWeight: '600', color: '#374151' },
+  imageGrid: { padding: 20 },
+  imageOption: { flex: 1, margin: 8, aspectRatio: 1, borderRadius: 12, overflow: 'hidden' },
+  imageOptionPreview: { width: '100%', height: '100%' },
+  successOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  successContainer: { margin: 40, borderRadius: 20, overflow: 'hidden' },
+  successGradient: { paddingVertical: 40, paddingHorizontal: 30, alignItems: 'center' },
+  successTitle: { fontSize: 24, fontWeight: 'bold', color: 'white', marginTop: 16, marginBottom: 8 },
+  successMessage: { fontSize: 16, color: 'rgba(255,255,255,0.9)', textAlign: 'center' },
 });

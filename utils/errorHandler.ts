@@ -103,8 +103,6 @@ export class Validator {
     
     if (!content) {
       errors.push('Post content is required');
-    } else if (content.length < 10) {
-      errors.push('Post content must be at least 10 characters long');
     } else if (content.length > 2000) {
       errors.push('Post content must be less than 2000 characters');
     }

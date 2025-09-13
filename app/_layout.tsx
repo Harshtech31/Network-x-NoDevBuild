@@ -30,6 +30,14 @@ export default function RootLayout() {
           <Stack.Screen name="UserProfileScreen" options={{ headerShown: false }} />
           <Stack.Screen name="MessagesScreen" options={{ headerShown: false }} />
           <Stack.Screen name="NotificationsScreen" options={{ headerShown: false }} />
+          <Stack.Screen name="ConnectionsScreen" options={{ headerShown: false }} />
+          <Stack.Screen name="CollaborationsScreen" options={{ headerShown: false }} />
+          <Stack.Screen name="LeaderboardScreen" options={{ headerShown: false }} />
+          <Stack.Screen name="SavedScreen" options={{ headerShown: false }} />
+          {/* TODO: Re-enable for future group features */}
+          {/* <Stack.Screen name="CreateGroupsScreen" options={{ headerShown: false }} /> */}
+          {/* <Stack.Screen name="JoinGroupsScreen" options={{ headerShown: false }} /> */}
+          <Stack.Screen name="CreateCollaborationScreen" options={{ headerShown: false }} />
           <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />

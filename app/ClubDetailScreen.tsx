@@ -13,6 +13,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -137,6 +138,39 @@ export default function ClubDetailScreen() {
     }
   };
 
+  const handleContactAdmin = (adminName: string) => {
+    Alert.alert(
+      'Contact Admin',
+      `Initiating chat with ${adminName}... (Feature coming soon!)`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleFollow = () => {
+    setIsFollowing(!isFollowing);
+    Alert.alert(
+      isFollowing ? 'Unfollowed' : 'Following',
+      isFollowing ? 'You are no longer following this club.' : 'You are now following this club and will receive updates.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleRSVP = (eventTitle: string) => {
+    Alert.alert(
+      'RSVP Confirmed',
+      `You have successfully RSVP'd for "${eventTitle}". You will receive a confirmation email shortly.`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handlePostAction = (action: string, postAuthor: string) => {
+    Alert.alert(
+      'Action Completed',
+      `${action} action performed on ${postAuthor}'s post.`,
+      [{ text: 'OK' }]
+    );
+  };
+
   // Mock club data - in real app this would come from API based on params.id
   const club = {
     id: Array.isArray(params.id) ? params.id[0] : params.id || '1',
@@ -252,8 +286,8 @@ export default function ClubDetailScreen() {
               <Text style={styles.adminName}>{admin.name}</Text>
               <Text style={styles.adminRole}>{admin.role}</Text>
             </View>
-            <TouchableOpacity style={styles.messageButton}>
-              <Ionicons name="chatbubble-outline" size={16} color="#8B1A1A" />
+            <TouchableOpacity style={styles.messageButton} onPress={() => handleContactAdmin(admin.name)}>
+              <Ionicons name="chatbubble-outline" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         ))}
@@ -298,7 +332,7 @@ export default function ClubDetailScreen() {
                 <Text style={styles.eventDetailText}>{event.location}</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.rsvpButton}>
+            <TouchableOpacity style={styles.rsvpButton} onPress={() => handleRSVP(event.title)}>
               <Text style={styles.rsvpButtonText}>RSVP</Text>
             </TouchableOpacity>
           </View>
@@ -319,15 +353,15 @@ export default function ClubDetailScreen() {
             </View>
             <Text style={styles.postContent}>{post.content}</Text>
             <View style={styles.postActions}>
-              <TouchableOpacity style={styles.postAction}>
+              <TouchableOpacity style={styles.postAction} onPress={() => handlePostAction('Like', post.author)}>
                 <Ionicons name="heart-outline" size={16} color="#6B7280" />
                 <Text style={styles.postActionText}>{post.likes}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.postAction}>
+              <TouchableOpacity style={styles.postAction} onPress={() => handlePostAction('Comment', post.author)}>
                 <Ionicons name="chatbubble-outline" size={16} color="#6B7280" />
                 <Text style={styles.postActionText}>{post.comments}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.postAction}>
+              <TouchableOpacity style={styles.postAction} onPress={() => handlePostAction('Share', post.author)}>
                 <Ionicons name="share-outline" size={16} color="#6B7280" />
               </TouchableOpacity>
             </View>
@@ -344,7 +378,7 @@ export default function ClubDetailScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
       {/* Animated Header */}
@@ -455,7 +489,7 @@ export default function ClubDetailScreen() {
           
           <TouchableOpacity 
             style={[styles.secondaryButton, isFollowing && styles.followingButton]}
-            onPress={() => setIsFollowing(!isFollowing)}
+            onPress={handleFollow}
           >
             <Ionicons 
               name={isFollowing ? "heart" : "heart-outline"} 
@@ -524,7 +558,7 @@ export default function ClubDetailScreen() {
                       <Text style={styles.memberRole}>{member.role}</Text>
                       <Text style={styles.memberJoinDate}>Joined {member.joinDate}</Text>
                     </View>
-                    <TouchableOpacity style={styles.memberActionButton}>
+                    <TouchableOpacity style={styles.memberActionButton} onPress={() => handleContactAdmin(member.name)}>
                       <Ionicons name="chatbubble-outline" size={20} color="#8B1A1A" />
                     </TouchableOpacity>
                   </View>
@@ -542,11 +576,11 @@ export default function ClubDetailScreen() {
                     </View>
                     <Text style={styles.postContent}>{post.content}</Text>
                     <View style={styles.postActions}>
-                      <TouchableOpacity style={styles.postAction}>
+                      <TouchableOpacity style={styles.postAction} onPress={() => handlePostAction('Like', post.author)}>
                         <Ionicons name="heart-outline" size={16} color="#6B7280" />
                         <Text style={styles.postActionText}>{post.likes}</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.postAction}>
+                      <TouchableOpacity style={styles.postAction} onPress={() => handlePostAction('Comment', post.author)}>
                         <Ionicons name="chatbubble-outline" size={16} color="#6B7280" />
                         <Text style={styles.postActionText}>{post.comments}</Text>
                       </TouchableOpacity>
@@ -568,7 +602,7 @@ export default function ClubDetailScreen() {
                     <Text style={styles.eventLocation}>{event.location}</Text>
                     <View style={styles.eventFooter}>
                       <Text style={styles.eventAttendees}>{event.attendees} attending</Text>
-                      <TouchableOpacity style={styles.eventJoinButton}>
+                      <TouchableOpacity style={styles.eventJoinButton} onPress={() => handleRSVP(event.title)}>
                         <Text style={styles.eventJoinText}>Join Event</Text>
                       </TouchableOpacity>
                     </View>
@@ -579,7 +613,7 @@ export default function ClubDetailScreen() {
           </ScrollView>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -824,6 +858,7 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   section: {
     backgroundColor: '#FFFFFF',

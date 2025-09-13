@@ -15,6 +15,8 @@ import {
   Platform,
   SafeAreaView,
   StyleSheet,
+  Modal,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -465,6 +467,7 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: 4,
   },
+
 });
 
 // Mock chat data with proper types
@@ -633,7 +636,50 @@ const ChatScreen: React.FC<ChatScreenProps> = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Keyboard and scroll handling
+  const flatListRef = useRef<FlatList>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  
+  
   const chatData = CHAT_DATA[id as keyof typeof CHAT_DATA];
+  
+  // Keyboard event listeners for WhatsApp-style behavior
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (event) => {
+        setKeyboardHeight(event.endCoordinates.height);
+        setIsKeyboardVisible(true);
+        // Scroll to bottom when keyboard appears
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardWillShowListener?.remove();
+      keyboardWillHideListener?.remove();
+    };
+  }, []);
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
   
   if (!chatData) {
     return (
@@ -642,6 +688,7 @@ const ChatScreen: React.FC<ChatScreenProps> = () => {
       </View>
     );
   }
+
 
   const sendMessage = () => {
     const validation = Validator.validatePostContent(newMessage);
@@ -681,86 +728,115 @@ const ChatScreen: React.FC<ChatScreenProps> = () => {
 
   return (
     <ErrorBoundary>
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#8B1A1A" translucent={false} />
-        
-        {/* Error Display */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={() => setError(null)} style={styles.dismissError}>
-              <Ionicons name="close" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        {/* Loading Overlay */}
-        {isLoading && <LoadingSpinner size="large" />}
-      
-        {/* WhatsApp-style Chat Header */}
-        <View style={styles.whatsappHeader}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={24} color="#8B1A1A" />
-          </TouchableOpacity>
-          <View style={styles.chatHeaderInfo}>
-            <Image source={{ uri: chatData.avatar }} style={styles.headerAvatar} />
-            <TouchableOpacity style={styles.headerTextContainer} onPress={() => router.push('/PersonDetailScreen')}>
-              <Text style={styles.chatHeaderName}>{chatData.name}</Text>
-              <Text style={styles.chatHeaderStatus}>
-                {chatData.type === 'group' ? `${chatData.members.length} members` : 'Online'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.headerActions}>
-          </View>
-        </View>
-      
-        {/* Messages List */}
-        <FlatList
-          data={messages}
-          renderItem={({ item, index }) => (
-            <RedesignedMessageBubble 
-              message={item}
-              onDelete={handleDeleteMessage}
-              isFirst={index === 0}
-              isLast={index === messages.length - 1}
-            />
-          )}
-          keyExtractor={(item) => item.id}
-          style={styles.redesignedMessagesContainer}
-          contentContainerStyle={styles.redesignedMessagesContent}
-          showsVerticalScrollIndicator={false}
-        />
-
-      {/* Message Input */}
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.inputContainer}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        enabled={true}
       >
-        <View style={styles.modernInputContainer}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.modernTextInput}
-              placeholder="Message..."
-              placeholderTextColor="#9CA3AF"
-              value={newMessage}
-              onChangeText={setNewMessage}
-              multiline
-              maxLength={500}
-            />
+        <SafeAreaView style={styles.container}>
+          <StatusBar barStyle="light-content" backgroundColor="#8B1A1A" translucent={false} />
+          
+          {/* Error Display */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity onPress={() => setError(null)} style={styles.dismissError}>
+                <Ionicons name="close" size={16} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {/* Loading Overlay */}
+          {isLoading && <LoadingSpinner size="large" />}
+        
+          {/* WhatsApp-style Chat Header */}
+          <View style={styles.whatsappHeader}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={24} color="#8B1A1A" />
+            </TouchableOpacity>
+            <View style={styles.chatHeaderInfo}>
+              <Image source={{ uri: chatData.avatar }} style={styles.headerAvatar} />
+              <TouchableOpacity style={styles.headerTextContainer} onPress={() => router.push('/PersonDetailScreen')}>
+                <Text style={styles.chatHeaderName}>{chatData.name}</Text>
+                <Text style={styles.chatHeaderStatus}>
+                  {chatData.type === 'group' ? `${chatData.members.length} members` : 'Online'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.headerActions}>
+            </View>
           </View>
-          <TouchableOpacity 
-            onPress={sendMessage} 
-            style={[styles.modernSendButton, newMessage.trim() ? styles.activeSendButton : styles.inactiveSendButton]}
-            disabled={!newMessage.trim()}
-          >
-            <Ionicons name="send" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+        
+          {/* Messages List */}
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={({ item, index }) => (
+              <RedesignedMessageBubble 
+                message={item}
+                onDelete={handleDeleteMessage}
+                isFirst={index === 0}
+                isLast={index === messages.length - 1}
+              />
+            )}
+            keyExtractor={(item) => item.id}
+            style={styles.redesignedMessagesContainer}
+            contentContainerStyle={[
+              styles.redesignedMessagesContent, 
+              { 
+                paddingBottom: 20
+              }
+            ]}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 10,
+            }}
+            inverted={false}
+            removeClippedSubviews={true}
+            windowSize={10}
+          />
+
+          {/* Message Input */}
+          <View style={styles.inputContainer}>
+            <View style={styles.modernInputContainer}>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.modernTextInput}
+                  placeholder="Message..."
+                  placeholderTextColor="#9CA3AF"
+                  value={newMessage}
+                  onChangeText={setNewMessage}
+                  onFocus={() => {
+                    // Scroll to bottom when input is focused
+                    setTimeout(() => {
+                      flatListRef.current?.scrollToEnd({ animated: true });
+                    }, 200);
+                  }}
+                  onBlur={() => {
+                    // Dismiss keyboard and reset layout when input loses focus
+                    Keyboard.dismiss();
+                  }}
+                  multiline
+                  maxLength={500}
+                />
+              </View>
+              <TouchableOpacity 
+                onPress={sendMessage} 
+                style={[styles.modernSendButton, newMessage.trim() ? styles.activeSendButton : styles.inactiveSendButton]}
+                disabled={!newMessage.trim()}
+              >
+                <Ionicons name="send" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+        </SafeAreaView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
-  </ErrorBoundary>
-);
+    </ErrorBoundary>
+  );
 };
 
 export default ChatScreen;

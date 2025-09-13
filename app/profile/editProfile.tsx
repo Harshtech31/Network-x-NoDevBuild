@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Alert,
   Dimensions,
@@ -44,14 +44,14 @@ export default function EditProfileScreen() {
   const [newSkill, setNewSkill] = useState('');
   const [newInterest, setNewInterest] = useState('');
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     // Here you would typically save to backend/storage
     Alert.alert('Success', 'Profile updated successfully!', [
       { text: 'OK', onPress: () => router.back() }
     ]);
-  };
+  }, []);
 
-  const handleAddSkill = () => {
+  const handleAddSkill = useCallback(() => {
     if (newSkill.trim() && !profileData.skills.includes(newSkill.trim())) {
       setProfileData(prev => ({
         ...prev,
@@ -59,16 +59,16 @@ export default function EditProfileScreen() {
       }));
       setNewSkill('');
     }
-  };
+  }, [newSkill, profileData.skills]);
 
-  const handleRemoveSkill = (skillToRemove: string) => {
+  const handleRemoveSkill = useCallback((skillToRemove: string) => {
     setProfileData(prev => ({
       ...prev,
       skills: prev.skills.filter(skill => skill !== skillToRemove)
     }));
-  };
+  }, []);
 
-  const handleAddInterest = () => {
+  const handleAddInterest = useCallback(() => {
     if (newInterest.trim() && !profileData.interests.includes(newInterest.trim())) {
       setProfileData(prev => ({
         ...prev,
@@ -76,14 +76,14 @@ export default function EditProfileScreen() {
       }));
       setNewInterest('');
     }
-  };
+  }, [newInterest, profileData.interests]);
 
-  const handleRemoveInterest = (interestToRemove: string) => {
+  const handleRemoveInterest = useCallback((interestToRemove: string) => {
     setProfileData(prev => ({
       ...prev,
       interests: prev.interests.filter(interest => interest !== interestToRemove)
     }));
-  };
+  }, []);
 
   return (
     <>
@@ -103,68 +103,67 @@ export default function EditProfileScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Profile Card Section */}
+        {/* Profile Information Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile Information</Text>
-          <View style={styles.profileCard}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Full Name</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.name}
-                onChangeText={(text) => setProfileData(prev => ({ ...prev, name: text }))}
-                placeholder="Enter your full name"
-              />
-            </View>
+          
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Full Name</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.name}
+              onChangeText={(text) => setProfileData(prev => ({ ...prev, name: text }))}
+              placeholder="Enter your full name"
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Handle</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.handle}
-                onChangeText={(text) => setProfileData(prev => ({ ...prev, handle: text }))}
-                placeholder="@username"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Handle</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.handle}
+              onChangeText={(text) => setProfileData(prev => ({ ...prev, handle: text }))}
+              placeholder="@username"
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>College/University</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.college}
-                onChangeText={(text) => setProfileData(prev => ({ ...prev, college: text }))}
-                placeholder="Enter your college name"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>College/University</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.college}
+              onChangeText={(text) => setProfileData(prev => ({ ...prev, college: text }))}
+              placeholder="Enter your college name"
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Joined Date</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.joinedDate}
-                onChangeText={(text) => setProfileData(prev => ({ ...prev, joinedDate: text }))}
-                placeholder="Month Year"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Joined Date</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.joinedDate}
+              onChangeText={(text) => setProfileData(prev => ({ ...prev, joinedDate: text }))}
+              placeholder="Month Year"
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Bio Description</Text>
-              <TextInput
-                style={[styles.textInput, styles.largeBioInput]}
-                value={profileData.bio}
-                onChangeText={(text) => setProfileData(prev => ({ ...prev, bio: text }))}
-                placeholder="Write a short bio about yourself"
-                multiline
-                numberOfLines={5}
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Bio Description</Text>
+            <TextInput
+              style={[styles.textInput, styles.largeBioInput]}
+              value={profileData.bio}
+              onChangeText={(text) => setProfileData(prev => ({ ...prev, bio: text }))}
+              placeholder="Write a short bio about yourself"
+              multiline
+              numberOfLines={5}
+            />
           </View>
         </View>
 
         {/* About Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
-          <View style={styles.card}>
+          <View style={styles.inputGroup}>
             <TextInput
               style={[styles.textInput, styles.largeAboutInput]}
               value={profileData.about}
@@ -179,178 +178,172 @@ export default function EditProfileScreen() {
         {/* Skills Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Skills & Expertise</Text>
-          <View style={styles.card}>
-            <View style={styles.addItemContainer}>
-              <TextInput
-                style={[styles.textInput, styles.addItemInput]}
-                value={newSkill}
-                onChangeText={setNewSkill}
-                placeholder="Add a new skill"
-                onSubmitEditing={handleAddSkill}
-              />
-              <TouchableOpacity onPress={handleAddSkill} style={styles.addButton}>
-                <Ionicons name="add" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.chipsContainer}>
-              {profileData.skills.map((skill, index) => (
-                <View key={index} style={styles.skillChip}>
-                  <Text style={styles.skillText}>{skill}</Text>
-                  <TouchableOpacity onPress={() => handleRemoveSkill(skill)}>
-                    <Ionicons name="close" size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
+          <View style={styles.addItemContainer}>
+            <TextInput
+              style={[styles.textInput, styles.addItemInput]}
+              value={newSkill}
+              onChangeText={setNewSkill}
+              placeholder="Add a new skill"
+              onSubmitEditing={handleAddSkill}
+            />
+            <TouchableOpacity onPress={handleAddSkill} style={styles.addButton}>
+              <Ionicons name="add" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.chipsContainer}>
+            {profileData.skills.map((skill, index) => (
+              <View key={index} style={styles.skillChip}>
+                <Text style={styles.skillText}>{skill}</Text>
+                <TouchableOpacity onPress={() => handleRemoveSkill(skill)}>
+                  <Ionicons name="close" size={16} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            ))}
           </View>
         </View>
 
         {/* Contact Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact Information</Text>
-          <View style={styles.card}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.contact.email}
-                onChangeText={(text) => setProfileData(prev => ({ 
-                  ...prev, 
-                  contact: { ...prev.contact, email: text }
-                }))}
-                placeholder="your.email@example.com"
-                keyboardType="email-address"
-              />
-            </View>
+          
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.contact.email}
+              onChangeText={(text) => setProfileData(prev => ({ 
+                ...prev, 
+                contact: { ...prev.contact, email: text }
+              }))}
+              placeholder="your.email@example.com"
+              keyboardType="email-address"
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Phone</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.contact.phone}
-                onChangeText={(text) => setProfileData(prev => ({ 
-                  ...prev, 
-                  contact: { ...prev.contact, phone: text }
-                }))}
-                placeholder="+1 234 567 8900"
-                keyboardType="phone-pad"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Phone</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.contact.phone}
+              onChangeText={(text) => setProfileData(prev => ({ 
+                ...prev, 
+                contact: { ...prev.contact, phone: text }
+              }))}
+              placeholder="+1 234 567 8900"
+              keyboardType="phone-pad"
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Website</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.contact.website}
-                onChangeText={(text) => setProfileData(prev => ({ 
-                  ...prev, 
-                  contact: { ...prev.contact, website: text }
-                }))}
-                placeholder="yourwebsite.com"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Website</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.contact.website}
+              onChangeText={(text) => setProfileData(prev => ({ 
+                ...prev, 
+                contact: { ...prev.contact, website: text }
+              }))}
+              placeholder="yourwebsite.com"
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>GitHub Username</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.contact.github}
-                onChangeText={(text) => setProfileData(prev => ({ 
-                  ...prev, 
-                  contact: { ...prev.contact, github: text }
-                }))}
-                placeholder="github_username"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>GitHub Username</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.contact.github}
+              onChangeText={(text) => setProfileData(prev => ({ 
+                ...prev, 
+                contact: { ...prev.contact, github: text }
+              }))}
+              placeholder="github_username"
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>LinkedIn Profile</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.contact.linkedin}
-                onChangeText={(text) => setProfileData(prev => ({ 
-                  ...prev, 
-                  contact: { ...prev.contact, linkedin: text }
-                }))}
-                placeholder="linkedin-profile-name"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>LinkedIn Profile</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.contact.linkedin}
+              onChangeText={(text) => setProfileData(prev => ({ 
+                ...prev, 
+                contact: { ...prev.contact, linkedin: text }
+              }))}
+              placeholder="linkedin-profile-name"
+            />
           </View>
         </View>
 
         {/* Academic Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Academic Information</Text>
-          <View style={styles.card}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Academic Year</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.academic.year}
-                onChangeText={(text) => setProfileData(prev => ({ 
-                  ...prev, 
-                  academic: { ...prev.academic, year: text }
-                }))}
-                placeholder="e.g., 3rd Year, Graduate, etc."
-              />
-            </View>
+          
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Academic Year</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.academic.year}
+              onChangeText={(text) => setProfileData(prev => ({ 
+                ...prev, 
+                academic: { ...prev.academic, year: text }
+              }))}
+              placeholder="e.g., 3rd Year, Graduate, etc."
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Major/Field of Study</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.academic.major}
-                onChangeText={(text) => setProfileData(prev => ({ 
-                  ...prev, 
-                  academic: { ...prev.academic, major: text }
-                }))}
-                placeholder="Computer Science, Engineering, etc."
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Major/Field of Study</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.academic.major}
+              onChangeText={(text) => setProfileData(prev => ({ 
+                ...prev, 
+                academic: { ...prev.academic, major: text }
+              }))}
+              placeholder="Computer Science, Engineering, etc."
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>GPA</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.academic.gpa}
-                onChangeText={(text) => setProfileData(prev => ({ 
-                  ...prev, 
-                  academic: { ...prev.academic, gpa: text }
-                }))}
-                placeholder="3.8/4.0"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>GPA</Text>
+            <TextInput
+              style={styles.textInput}
+              value={profileData.academic.gpa}
+              onChangeText={(text) => setProfileData(prev => ({ 
+                ...prev, 
+                academic: { ...prev.academic, gpa: text }
+              }))}
+              placeholder="3.8/4.0"
+            />
           </View>
         </View>
 
         {/* Interests Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Interests</Text>
-          <View style={styles.card}>
-            <View style={styles.addItemContainer}>
-              <TextInput
-                style={[styles.textInput, styles.addItemInput]}
-                value={newInterest}
-                onChangeText={setNewInterest}
-                placeholder="Add a new interest"
-                onSubmitEditing={handleAddInterest}
-              />
-              <TouchableOpacity onPress={handleAddInterest} style={styles.addButton}>
-                <Ionicons name="add" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.chipsContainer}>
-              {profileData.interests.map((interest, index) => (
-                <View key={index} style={styles.interestChip}>
-                  <Text style={styles.interestText}>{interest}</Text>
-                  <TouchableOpacity onPress={() => handleRemoveInterest(interest)}>
-                    <Ionicons name="close" size={16} color="#92400E" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
+          <View style={styles.addItemContainer}>
+            <TextInput
+              style={[styles.textInput, styles.addItemInput]}
+              value={newInterest}
+              onChangeText={setNewInterest}
+              placeholder="Add a new interest"
+              onSubmitEditing={handleAddInterest}
+            />
+            <TouchableOpacity onPress={handleAddInterest} style={styles.addButton}>
+              <Ionicons name="add" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.chipsContainer}>
+            {profileData.interests.map((interest, index) => (
+              <View key={index} style={styles.interestChip}>
+                <Text style={styles.interestText}>{interest}</Text>
+                <TouchableOpacity onPress={() => handleRemoveInterest(interest)}>
+                  <Ionicons name="close" size={16} color="#92400E" />
+                </TouchableOpacity>
+              </View>
+            ))}
           </View>
         </View>
 

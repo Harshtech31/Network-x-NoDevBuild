@@ -14,9 +14,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   Clipboard,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+3
 import { LinearGradient } from 'expo-linear-gradient';
 import { ShareService } from '../utils/ShareService';
 
@@ -34,15 +36,13 @@ export default function ProjectDetailScreen() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [modalType, setModalType] = useState(''); // 'contributors', 'updates', 'resources'
   const [memberCount, setMemberCount] = useState(4);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
 
   // Mock project data - in real app this would come from API based on params.id
   const project = {
@@ -166,7 +166,7 @@ export default function ProjectDetailScreen() {
             <Text style={styles.memberName}>{project.leader.name}</Text>
             <Text style={styles.memberRole}>{project.leader.role}</Text>
           </View>
-          <TouchableOpacity style={styles.contactButton}>
+          <TouchableOpacity style={styles.contactButton} onPress={() => handleContact(project.leader.name)}>
             <Ionicons name="chatbubble-outline" size={16} color="#8B1A1A" />
           </TouchableOpacity>
         </View>
@@ -181,7 +181,7 @@ export default function ProjectDetailScreen() {
               <Text style={styles.memberName}>{member.name}</Text>
               <Text style={styles.memberRole}>{member.role}</Text>
             </View>
-            <TouchableOpacity style={styles.contactButton}>
+            <TouchableOpacity style={styles.contactButton} onPress={() => handleContact(member.name)}>
               <Ionicons name="chatbubble-outline" size={16} color="#8B1A1A" />
             </TouchableOpacity>
           </View>
@@ -334,17 +334,25 @@ export default function ProjectDetailScreen() {
     );
   };
 
+  const handleContact = (name: string) => {
+    Alert.alert(
+      'Contact Member',
+      `Initiating chat with ${name}... (Feature coming soon!)`,
+      [{ text: 'OK' }]
+    );
+  };
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
 
-      <Animated.ScrollView 
+      <Animated.ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: fadeAnim } } }],
-          { useNativeDriver: false }
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
         refreshControl={
@@ -372,7 +380,7 @@ export default function ProjectDetailScreen() {
           </View>
 
           {/* Project Info Overlay */}
-          <Animated.View style={[styles.projectInfoOverlay, { opacity: fadeAnim }]}>
+          <Animated.View style={[styles.projectInfoOverlay, { opacity: headerOpacity }]}>
             <View style={styles.statusBadgeContainer}>
               <View style={[styles.statusBadge, { backgroundColor: getStatusColor(project.status).bg }]}>
                 <Text style={[styles.statusText, { color: getStatusColor(project.status).text }]}>
@@ -391,21 +399,28 @@ export default function ProjectDetailScreen() {
             <View style={styles.statIconContainer}>
               <Ionicons name="people-outline" size={20} color="#7f1d1d" />
             </View>
-            <Text style={styles.modernStatNumber}>{project.teamSize}</Text>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.modernStatNumber}>4/6</Text>
+              <Text style={styles.modernStatSubtext}>members</Text>
+            </View>
             <Text style={styles.modernStatLabel}>Team Size</Text>
           </View>
           <View style={styles.modernStatItem}>
             <View style={styles.statIconContainer}>
               <Ionicons name="time-outline" size={20} color="#7f1d1d" />
             </View>
-            <Text style={styles.modernStatNumber}>{project.duration}</Text>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.modernStatNumber}>{project.duration}</Text>
+            </View>
             <Text style={styles.modernStatLabel}>Duration</Text>
           </View>
           <View style={styles.modernStatItem}>
             <View style={styles.statIconContainer}>
               <Ionicons name="calendar-outline" size={20} color="#7f1d1d" />
             </View>
-            <Text style={styles.modernStatNumber}>{project.startDate}</Text>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.modernStatNumber}>{project.startDate}</Text>
+            </View>
             <Text style={styles.modernStatLabel}>Start Date</Text>
           </View>
         </View>
@@ -493,7 +508,7 @@ export default function ProjectDetailScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -600,8 +615,10 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   statusBadgeContainer: {
-    alignSelf: 'flex-start',
-    marginBottom: 10,
+    position: 'absolute',
+    top: 10,
+    right: 20,
+    zIndex: 1,
   },
   heroProjectTitle: {
     fontSize: 28,
@@ -716,7 +733,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   tabContent: {
-    flex: 1,
     padding: 20,
   },
   section: {
@@ -960,7 +976,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: 'rgba(127, 29, 29, 0.1)',
     shadowColor: '#7f1d1d',
@@ -982,11 +998,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  statTextContainer: {
+    minHeight: 50, // Adjust this value as needed for alignment
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modernStatNumber: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 4,
+  },
+  modernStatSubtext: {
+    fontSize: 14,
+    color: '#374151',
   },
   modernStatLabel: {
     fontSize: 12,

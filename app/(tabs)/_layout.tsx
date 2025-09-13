@@ -160,6 +160,21 @@ export default function TabLayout() {
         }} 
       />
       <Tabs.Screen 
+        name="NotificationsScreen" 
+        options={{
+          title: 'Notifications',
+          tabBarIcon: ({ focused }) => (
+            <View style={focused ? styles.activeTabContainer : styles.inactiveTabContainer}>
+              <Ionicons 
+                name={focused ? "notifications" : "notifications-outline"} 
+                size={24}
+                color={focused ? "#FFFFFF" : "#111111"}
+              />
+            </View>
+          ),
+        }} 
+      />
+      <Tabs.Screen 
         name="SearchScreen" 
         options={{
           title: 'Search',
@@ -178,15 +193,7 @@ export default function TabLayout() {
         name="profile" 
         options={{
           title: 'Profile',
-          tabBarIcon: ({ focused }) => (
-            <View style={focused ? styles.activeTabContainer : styles.inactiveTabContainer}>
-              <Ionicons 
-                name={focused ? "person" : "person-outline"} 
-                size={24}
-                color={focused ? "#FFFFFF" : "#111111"}
-              />
-            </View>
-          ),
+          href: null,
         }} 
       />
     </Tabs>

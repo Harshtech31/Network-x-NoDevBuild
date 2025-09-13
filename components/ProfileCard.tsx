@@ -1,10 +1,28 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
-const ProfileCard = ({
+interface ProfileCardProps {
+  name: string;
+  headline: string;
+  connections: string | number;
+  location: string;
+  onMessagePress: () => void;
+  onMorePress: () => void;
+  onConnectPress: () => void;
+  onFollowPress: () => void;
+  isConnected?: boolean;
+  isFollowing?: boolean;
+  showConnect?: boolean;
+  showMessage?: boolean;
+  showMore?: boolean;
+  showFollow?: boolean;
+  style?: ViewStyle;
+}
+
+const ProfileCard: React.FC<ProfileCardProps> = ({
   name,
   headline,
   connections,

@@ -331,145 +331,144 @@ export default function SearchScreen() {
         translucent={false} 
       />
       
-      {/* Header with Search Bar */}
-      <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-        <View style={[styles.searchContainer, { marginTop: 32 }]}>
-          <Ionicons name="search" size={20} color="#6B7280" />
-          <TextInput
-            placeholder="Search events, people, projects..."
-            placeholderTextColor="#9CA3AF"
-            style={styles.searchInput}
-            value={query}
-            onChangeText={(text) => {
-              setQuery(text);
-              // Trigger search on text change for real-time filtering
-              if (text.trim()) {
-                handleSearch();
-              } else {
-                // Reset to original data if query is empty
-                setFilteredPeople(MOCK_PEOPLE);
-                setFilteredPosts(MOCK_POSTS);
-                setFilteredProjects(MOCK_PROJECTS);
-                setFilteredClubs(MOCK_CLUBS);
-                setIsSearching(false);
-              }
-            }}
-            onSubmitEditing={handleSearch}
-          />
-          {isSearching ? (
-            <ActivityIndicator size="small" color="#991B1B" style={styles.searchLoader} />
-          ) : (
-            <TouchableOpacity onPress={handleFilterPress} style={styles.filterButton}>
-              <Ionicons name="funnel-outline" size={20} color="#991B1B" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Modern Filter Panel */}
-        {showFilter && (
-          <Animated.View style={styles.filterPanel}>
-            <View style={styles.filterHeader}>
-              <Text style={styles.filterHeaderTitle}>Filter & Discover</Text>
-              <TouchableOpacity onPress={() => setShowFilter(false)} style={styles.closeFilterButton}>
-                <Ionicons name="close" size={20} color="#8B1A1A" />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.filterSection}>
-              <Text style={styles.filterTitle}>Category</Text>
-              <View style={styles.filterGrid}>
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    style={[styles.modernFilterChip, activeCategory === category && styles.modernFilterChipActive]}
-                    onPress={() => setActiveCategory(category)}
-                  >
-                    <Text style={[styles.modernFilterChipText, activeCategory === category && styles.modernFilterChipTextActive]}>
-                      {category}
-                    </Text>
-                    {activeCategory === category && (
-                      <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" style={styles.chipIcon} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.filterSection}>
-              <Text style={styles.filterTitle}>Academic Year</Text>
-              <View style={styles.filterGrid}>
-                {years.map((year) => (
-                  <TouchableOpacity
-                    key={year}
-                    style={[styles.modernFilterChip, selectedYears.includes(year) && styles.modernFilterChipActive]}
-                    onPress={() => {
-                      if (selectedYears.includes(year)) {
-                        setSelectedYears(selectedYears.filter(y => y !== year));
-                      } else {
-                        setSelectedYears([...selectedYears, year]);
-                      }
-                    }}
-                  >
-                    <Text style={[styles.modernFilterChipText, selectedYears.includes(year) && styles.modernFilterChipTextActive]}>
-                      {year}
-                    </Text>
-                    {selectedYears.includes(year) && (
-                      <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" style={styles.chipIcon} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            
-            <View style={styles.filterSection}>
-              <Text style={styles.filterTitle}>Department</Text>
-              <View style={styles.filterGrid}>
-                {departments.map((dept) => (
-                  <TouchableOpacity
-                    key={dept}
-                    style={[styles.modernFilterChip, selectedDepartments.includes(dept) && styles.modernFilterChipActive]}
-                    onPress={() => {
-                      if (selectedDepartments.includes(dept)) {
-                        setSelectedDepartments(selectedDepartments.filter(d => d !== dept));
-                      } else {
-                        setSelectedDepartments([...selectedDepartments, dept]);
-                      }
-                    }}
-                  >
-                    <Text style={[styles.modernFilterChipText, selectedDepartments.includes(dept) && styles.modernFilterChipTextActive]}>
-                      {dept}
-                    </Text>
-                    {selectedDepartments.includes(dept) && (
-                      <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" style={styles.chipIcon} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            
-            <View style={styles.modernFilterActions}>
-              <TouchableOpacity style={styles.modernClearButton} onPress={() => { setSelectedYears([]); setSelectedDepartments([]); setActiveCategory('All'); }}>
-                <Ionicons name="refresh-outline" size={18} color="#6B7280" />
-                <Text style={styles.modernClearButtonText}>Reset</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modernApplyButton} onPress={() => setShowFilter(false)}>
-                <LinearGradient
-                  colors={['#8B1A1A', '#DC2626']}
-                  style={styles.applyButtonGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Ionicons name="search" size={18} color="#FFFFFF" />
-                  <Text style={styles.modernApplyButtonText}>Find Matches</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        )}
-      </Animated.View>
-
-
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        
+        {/* Header with Search Bar - Now inside ScrollView for Instagram-style scrolling */}
+        <Animated.View style={[styles.scrollingHeader, { opacity: fadeAnim }]}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#6B7280" />
+            <TextInput
+              placeholder="Search events, people, projects..."
+              placeholderTextColor="#9CA3AF"
+              style={styles.searchInput}
+              value={query}
+              onChangeText={(text) => {
+                setQuery(text);
+                // Trigger search on text change for real-time filtering
+                if (text.trim()) {
+                  handleSearch();
+                } else {
+                  // Reset to original data if query is empty
+                  setFilteredPeople(MOCK_PEOPLE);
+                  setFilteredPosts(MOCK_POSTS);
+                  setFilteredProjects(MOCK_PROJECTS);
+                  setFilteredClubs(MOCK_CLUBS);
+                  setIsSearching(false);
+                }
+              }}
+              onSubmitEditing={handleSearch}
+            />
+            {isSearching ? (
+              <ActivityIndicator size="small" color="#991B1B" style={styles.searchLoader} />
+            ) : (
+              <TouchableOpacity onPress={handleFilterPress} style={styles.filterButton}>
+                <Ionicons name="funnel-outline" size={20} color="#991B1B" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Modern Filter Panel */}
+          {showFilter && (
+            <Animated.View style={styles.filterPanel}>
+              <View style={styles.filterHeader}>
+                <Text style={styles.filterHeaderTitle}>Filter & Discover</Text>
+                <TouchableOpacity onPress={() => setShowFilter(false)} style={styles.closeFilterButton}>
+                  <Ionicons name="close" size={20} color="#8B1A1A" />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Category</Text>
+                <View style={styles.filterGrid}>
+                  {categories.map((category) => (
+                    <TouchableOpacity
+                      key={category}
+                      style={[styles.modernFilterChip, activeCategory === category && styles.modernFilterChipActive]}
+                      onPress={() => setActiveCategory(category)}
+                    >
+                      <Text style={[styles.modernFilterChipText, activeCategory === category && styles.modernFilterChipTextActive]}>
+                        {category}
+                      </Text>
+                      {activeCategory === category && (
+                        <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" style={styles.chipIcon} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Academic Year</Text>
+                <View style={styles.filterGrid}>
+                  {years.map((year) => (
+                    <TouchableOpacity
+                      key={year}
+                      style={[styles.modernFilterChip, selectedYears.includes(year) && styles.modernFilterChipActive]}
+                      onPress={() => {
+                        if (selectedYears.includes(year)) {
+                          setSelectedYears(selectedYears.filter(y => y !== year));
+                        } else {
+                          setSelectedYears([...selectedYears, year]);
+                        }
+                      }}
+                    >
+                      <Text style={[styles.modernFilterChipText, selectedYears.includes(year) && styles.modernFilterChipTextActive]}>
+                        {year}
+                      </Text>
+                      {selectedYears.includes(year) && (
+                        <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" style={styles.chipIcon} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Department</Text>
+                <View style={styles.filterGrid}>
+                  {departments.map((dept) => (
+                    <TouchableOpacity
+                      key={dept}
+                      style={[styles.modernFilterChip, selectedDepartments.includes(dept) && styles.modernFilterChipActive]}
+                      onPress={() => {
+                        if (selectedDepartments.includes(dept)) {
+                          setSelectedDepartments(selectedDepartments.filter(d => d !== dept));
+                        } else {
+                          setSelectedDepartments([...selectedDepartments, dept]);
+                        }
+                      }}
+                    >
+                      <Text style={[styles.modernFilterChipText, selectedDepartments.includes(dept) && styles.modernFilterChipTextActive]}>
+                        {dept}
+                      </Text>
+                      {selectedDepartments.includes(dept) && (
+                        <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" style={styles.chipIcon} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              
+              <View style={styles.modernFilterActions}>
+                <TouchableOpacity style={styles.modernClearButton} onPress={() => { setSelectedYears([]); setSelectedDepartments([]); setActiveCategory('All'); }}>
+                  <Ionicons name="refresh-outline" size={18} color="#6B7280" />
+                  <Text style={styles.modernClearButtonText}>Reset</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modernApplyButton} onPress={() => setShowFilter(false)}>
+                  <LinearGradient
+                    colors={['#8B1A1A', '#DC2626']}
+                    style={styles.applyButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="search" size={18} color="#FFFFFF" />
+                    <Text style={styles.modernApplyButtonText}>Find Matches</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          )}
+        </Animated.View>
 
         {/* LinkedIn-style Content Sections */}
         {(activeCategory === 'All' || activeCategory === 'People') && (
@@ -663,26 +662,32 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     backgroundColor: '#fef2f2',
   },
+  scrollingHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: '#fef2f2',
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    height: 50,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 44,
     borderWidth: 1,
-    borderColor: 'rgba(127, 29, 29, 0.1)',
+    borderColor: 'rgba(153, 27, 27, 0.08)',
     shadowColor: '#991B1B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#1F2937',
-    marginLeft: 10,
+    color: '#111827',
+    marginLeft: 12,
   },
   filterButton: {
     padding: 5,

@@ -9,6 +9,7 @@ import {
     FlatList,
     Image,
     Modal,
+    RefreshControl,
     SafeAreaView,
     ScrollView,
     StatusBar,
@@ -37,6 +38,7 @@ export default function ProfileScreen() {
     events: 25,
     connections: 156
   });
+  const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -189,6 +191,17 @@ export default function ProfileScreen() {
   const handleEditProfile = () => {
     router.push('/profile/editProfile');
   };
+
+  // Pull to refresh handler
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // Simulate API call to refresh profile data
+    setTimeout(() => {
+      setRefreshing(false);
+      // You can add actual data refresh logic here
+      console.log('Profile data refreshed');
+    }, 1500);
+  }, []);
 
   const renderOverview = () => (
     <Animated.View style={{ opacity: fadeAnim }}>
@@ -528,7 +541,18 @@ export default function ProfileScreen() {
       />
       
       {/* Scrollable Profile Content */}
-      <ScrollView style={styles.mainScrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.mainScrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#991B1B']}
+            tintColor={'#991B1B'}
+          />
+        }
+      >
         {/* Profile Header */}
         <Animated.View style={[styles.profileHeader, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.coverPhotoContainer}>
@@ -582,22 +606,22 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
+              <TouchableOpacity style={styles.statItem} onPress={() => handleTabPress('projects', 1)}>
                 <Text style={styles.statNumber}>{profileStats.projects}</Text>
                 <Text style={styles.statLabel}>Projects</Text>
-              </View>
-              <View style={styles.statItem}>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.statItem} onPress={() => router.push('/CollaborationsScreen')}>
                 <Text style={styles.statNumber}>{profileStats.collaborations}</Text>
                 <Text style={styles.statLabel}>Collaborations</Text>
-              </View>
-              <View style={styles.statItem}>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.statItem} onPress={() => handleTabPress('events', 3)}>
                 <Text style={styles.statNumber}>{profileStats.events}</Text>
                 <Text style={styles.statLabel}>Events</Text>
-              </View>
-              <View style={styles.statItem}>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.statItem} onPress={() => router.push('/ConnectionsScreen')}>
                 <Text style={styles.statNumber}>{profileStats.connections}</Text>
                 <Text style={styles.statLabel}>Connections</Text>
-              </View>
+              </TouchableOpacity>
             </View>
 
             {/* Tab Navigation inside Profile Box */}
